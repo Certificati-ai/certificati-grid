@@ -22,11 +22,6 @@
       font-size: 1.2rem;
     }
 
-    #wrapper {
-      max-width: 100%;
-      overflow-x: auto;
-    }
-
     .gridjs-container {
       font-size: 10px;
     }
@@ -38,7 +33,7 @@
       vertical-align: middle;
     }
 
-    .row-divider td {
+    tr.new-cert td {
       border-top: 2px solid #ccc !important;
     }
 
@@ -64,19 +59,16 @@
       text-decoration: underline;
     }
 
-    .gridjs-footer {
-      text-align: left;
+    #cert-count {
+      margin-top: 8px;
       font-size: 10px;
-      padding-top: 8px;
     }
   </style>
 </head>
 <body>
   <h1>Tabella Certificati Finanziari</h1>
-  <div id="wrapper">
-    <div id="table"></div>
-    <div id="cert-count" class="gridjs-footer"></div>
-  </div>
+  <div id="table"></div>
+  <div id="cert-count"></div>
 
   <script>
     const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQWK_CUJUV8yI0jG51rgpz7DMcVTuLt_HqjyTLPdPDkTyIxWBn8G6yozBtVU3bVymtwOCeZPCKmNAsW/pub?output=csv";
@@ -89,40 +81,9 @@
           skipEmptyLines: true
         });
 
-        let headers = Object.keys(parsed.data[0]);
-        const data = [];
+        const raw = parsed.data.filter(row => Object.values(row)[1]?.trim() !== "----------");
 
-        for (const row of parsed.data) {
-          const secondCol = Object.values(row)[1]?.trim();
-          if (secondCol === "----------") continue;
-
-          const newRow = { ...row };
-
-          if ((row["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
-            newRow["Valuta"] = `${row["Valuta"]}<br/>Quanto`;
-          }
-
-          if (row["Osservazione"] && row["Prossima Osservazione"]) {
-            newRow["Prossima Osservazione"] = `${row["Prossima Osservazione"]}<br/>${row["Osservazione"]}`;
-          }
-
-          if (row["Tipologia di barriera"]?.toLowerCase().includes("solo a scadenza")) {
-            newRow["Barriera capitale"] = `${row["Barriera capitale"]}<br/>Europea`;
-          }
-
-          const memoria = row["Effetto memoria"];
-          if (memoria) {
-            const norm = memoria.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-            if (norm === "si") {
-              newRow["Barriera cedolare"] = `${row["Barriera cedolare"]}<br/>Si Memory`;
-            }
-          }
-
-          data.push(newRow);
-        }
-
-        // Rimuovi colonne
-        headers = headers.filter(h =>
+        const headers = Object.keys(raw[0]).filter(h =>
           h !== "Effetto memoria" &&
           h !== "Tipologia di barriera" &&
           h !== "Quanto (protezione cambio)" &&
@@ -130,57 +91,81 @@
           h !== "Link"
         );
 
-        // Salviamo gli ISIN per contare i certificati
-        const allISIN = [...new Set(data.map(row => row["ISIN"]))];
-        let currentPageISIN = new Set();
+        const data = [];
+        const allISINs = new Set();
 
-        const tableData = data.map((row, idx, arr) => {
-          const cells = headers.map(h => {
-            const value = row[h] || "";
+        for (let i = 0; i < raw.length; i++) {
+          const row = { ...raw[i] };
 
+          // PREPARAZIONI
+          const isin = row["ISIN"];
+          const prevIsin = i > 0 ? raw[i - 1]["ISIN"] : null;
+          const isNewCert = isin !== prevIsin;
+          if (isin) allISINs.add(isin);
+
+          if ((row["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
+            row["Valuta"] = `${row["Valuta"]}<br/>Quanto`;
+          }
+
+          if (row["Osservazione"] && row["Prossima Osservazione"]) {
+            row["Prossima Osservazione"] = `${row["Prossima Osservazione"]}<br/>${row["Osservazione"]}`;
+          }
+
+          if (row["Tipologia di barriera"]?.toLowerCase().includes("solo a scadenza")) {
+            row["Barriera capitale"] = `${row["Barriera capitale"]}<br/>Europea`;
+          }
+
+          const mem = row["Effetto memoria"];
+          if (mem) {
+            const norm = mem.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+            if (norm === "si") {
+              row["Barriera cedolare"] = `${row["Barriera cedolare"]}<br/>Si Memory`;
+            }
+          }
+
+          const rowArray = headers.map(h => {
+            const val = row[h] || "";
             if (h.toLowerCase().includes("performance") || h.toLowerCase().includes("distanza")) {
-              const num = parseFloat(value.replace('%', '').replace(',', '.'));
+              const num = parseFloat(val.replace('%', '').replace(',', '.'));
               if (!isNaN(num)) {
                 const cls = num >= 0 ? 'highlight-positive' : 'highlight-negative';
-                return gridjs.html(`<span class="${cls}">${value}</span>`);
+                return gridjs.html(`<span class="${cls}">${val}</span>`);
               }
             }
 
-            if (h.toLowerCase() === "isin" && value.startsWith("CH")) {
-              const link = row["Link"]?.trim() || `https://www.google.com/search?q=${value}`;
-              currentPageISIN.add(value);
-              return gridjs.html(`<a class="isin-link" href="${link}" target="_blank">${value}</a>`);
+            if (h === "ISIN" && val.startsWith("CH")) {
+              const link = raw[i]["Link"]?.trim() || `https://www.google.com/search?q=${val}`;
+              return gridjs.html(`<a class="isin-link" href="${link}" target="_blank">${val}</a>`);
             }
 
-            if (value.includes("<br/>")) {
-              return gridjs.html(value);
+            if (val.includes("<br/>")) {
+              return gridjs.html(val);
             }
 
-            return value;
+            return val;
           });
 
-          const prevISIN = idx > 0 ? arr[idx - 1]["ISIN"] : null;
-          const isNewCert = row["ISIN"] !== prevISIN;
-          return isNewCert
-            ? gridjs.h('tr', { className: 'row-divider' }, cells.map(c => gridjs.h('td', {}, c)))
-            : cells;
-        });
+          // Aggiungi classe per divisore visivo
+          data.push({
+            cells: rowArray,
+            className: isNewCert ? 'new-cert' : ''
+          });
+        }
 
         const grid = new gridjs.Grid({
           columns: headers,
-          data: tableData,
+          data: data,
           search: {
             enabled: true,
-            placeholder: 'Cerca'
+            placeholder: "Cerca"
           },
           sort: true,
           pagination: {
             enabled: true,
             limit: 30,
           },
-          resizable: true,
-          style: {
-            table: { borderCollapse: 'collapse' }
+          className: {
+            table: 'gridjs-table'
           },
           language: {
             pagination: {
@@ -192,17 +177,10 @@
 
         grid.render(document.getElementById("table"));
 
-        // Dopo il rendering
         setTimeout(() => {
-          const rows = document.querySelectorAll("tr.row-divider");
-          const uniqueISINs = new Set();
-          rows.forEach(tr => {
-            const isinCell = tr.querySelector("td:last-child a");
-            if (isinCell) uniqueISINs.add(isinCell.textContent.trim());
-          });
-
+          const rows = document.querySelectorAll("tr.new-cert");
           document.getElementById("cert-count").textContent =
-            `Certificati mostrati ${uniqueISINs.size} su ${allISIN.length}`;
+            `Certificati mostrati ${rows.length} su ${allISINs.size}`;
         }, 500);
       });
   </script>
