@@ -4,8 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Tabella Certificati Finanziari</title>
+  <!-- Grid.js -->
   <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
   <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
+  <!-- PapaParse -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -73,12 +76,16 @@
     fetch(csvUrl)
       .then(res => res.text())
       .then(csv => {
-        const delimiter = csv.includes(';') ? ';' : ',';
-        const rows = csv.trim().split('\\n').map(r => r.split(delimiter));
-        const [header, ...data] = rows;
+        const parsed = Papa.parse(csv, {
+          header: true,
+          skipEmptyLines: true
+        });
+
+        const headers = Object.keys(parsed.data[0]);
+        const data = parsed.data.map(row => headers.map(h => row[h]));
 
         new gridjs.Grid({
-          columns: header,
+          columns: headers,
           data: data,
           search: true,
           sort: true,
