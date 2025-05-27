@@ -12,6 +12,7 @@
       font-family: Arial, sans-serif;
       font-size: 10px;
       padding: 0.5rem;
+      background: #fff;
     }
 
     h1 {
@@ -23,20 +24,15 @@
       font-size: 10px;
     }
 
-    .gridjs-table th,
-    .gridjs-table td {
+    .gridjs-table th, .gridjs-table td {
       padding: 3px 4px;
-      border: none;
       text-align: center;
+      border: none;
     }
 
     .gridjs-table th {
       background: #f2f2f2;
       font-weight: 600;
-    }
-
-    .divider-row td {
-      border-top: 2px solid #999 !important;
     }
 
     .highlight-positive {
@@ -62,8 +58,20 @@
     }
 
     #cert-count {
-      margin-top: 10px;
+      margin-top: 8px;
       font-size: 10px;
+    }
+
+    .row-top-divider td {
+      border-top: 2px solid #999 !important;
+    }
+
+    .row-bottom-divider td {
+      border-bottom: 2px solid #999 !important;
+    }
+
+    .gridjs-summary {
+      display: none !important;
     }
   </style>
 </head>
@@ -78,16 +86,10 @@
     fetch(csvUrl)
       .then(res => res.text())
       .then(csv => {
-        const parsed = Papa.parse(csv, {
-          header: true,
-          skipEmptyLines: true
-        });
-
+        const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
         const raw = parsed.data.filter(row => Object.values(row)[1]?.trim() !== "----------");
 
         const allISINs = new Set();
-        const tableData = [];
-        const dividerIndices = [];
         const headers = Object.keys(raw[0]).filter(h =>
           h !== "Effetto memoria" &&
           h !== "Tipologia di barriera" &&
@@ -96,18 +98,16 @@
           h !== "Link"
         );
 
+        const data = [];
         let prevISIN = null;
 
         for (let i = 0; i < raw.length; i++) {
           const row = raw[i];
-          const currentISIN = row["ISIN"];
+          const currISIN = row["ISIN"];
 
-          if (currentISIN) allISINs.add(currentISIN);
-          const isNewCert = currentISIN !== prevISIN;
-          if (isNewCert) dividerIndices.push(i);
-          prevISIN = currentISIN;
+          if (currISIN) allISINs.add(currISIN);
 
-          // Trasformazioni
+          // Decorazioni
           if (row["Quanto (protezione cambio)"]?.toLowerCase().trim() === "sì") {
             row["Valuta"] = `${row["Valuta"]}<div>Quanto</div>`;
           }
@@ -141,19 +141,16 @@
               return gridjs.html(`<a class="isin-link" href="${link}" target="_blank">${val}</a>`);
             }
 
-            if (val.includes("<div>")) {
-              return gridjs.html(val);
-            }
-
+            if (val.includes("<div>")) return gridjs.html(val);
             return val;
           });
 
-          tableData.push(formattedRow);
+          data.push({ row: formattedRow, isin: currISIN });
         }
 
-        const grid = new gridjs.Grid({
+        const table = new gridjs.Grid({
           columns: headers,
-          data: tableData,
+          data: data.map(d => d.row),
           search: {
             enabled: true,
             placeholder: "Cerca"
@@ -161,9 +158,12 @@
           sort: true,
           pagination: {
             enabled: true,
-            limit: 30
+            limit: 30,
           },
           language: {
+            search: {
+              placeholder: 'Cerca'
+            },
             pagination: {
               previous: 'Precedente',
               next: 'Successivo',
@@ -172,26 +172,28 @@
           }
         });
 
-        grid.render(document.getElementById("table"));
+        table.render(document.getElementById("table"));
 
-        // Dopo render: aggiungi divider + conta certificati visibili
         setTimeout(() => {
           const rows = document.querySelectorAll(".gridjs-table tbody tr");
-          const isinSet = new Set();
+          const visibleISINs = new Set();
+          let prev = null;
 
           rows.forEach((tr, i) => {
             const isinCell = tr.querySelector("td:last-child a");
-            if (isinCell) {
-              isinSet.add(isinCell.textContent.trim());
-            }
+            const currISIN = isinCell?.textContent.trim();
 
-            if (dividerIndices.includes(i)) {
-              tr.classList.add("divider-row");
+            if (currISIN) visibleISINs.add(currISIN);
+
+            if (currISIN && currISIN !== prev) {
+              tr.classList.add("row-top-divider");
+              if (i > 0) rows[i - 1].classList.add("row-bottom-divider");
+              prev = currISIN;
             }
           });
 
           document.getElementById("cert-count").textContent =
-            `Certificati mostrati ${isinSet.size} su ${allISINs.size}`;
+            `Certificati mostrati ${visibleISINs.size} su ${allISINs.size}`;
         }, 800);
       });
   </script>
