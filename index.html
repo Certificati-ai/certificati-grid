@@ -85,37 +85,31 @@
           skipEmptyLines: true
         });
 
-        let headers = Object.keys(parsed.data[0]);
-        const data = [];
+        // Filtra le righe con "----------" nella seconda colonna
+        const filteredData = parsed.data.filter(row => {
+          const secondCol = Object.values(row)[1]?.trim();
+          return secondCol !== "----------";
+        });
 
-        for (const row of parsed.data) {
-          // Salta righe con "----------" nella seconda colonna
-          const firstCol = Object.values(row)[1]?.trim();
-          if (firstCol === "----------") continue;
-
-          // Clone riga per modifica
-          const newRow = { ...row };
-
-          // Barriera capitale + Tipologia
-          if (
-            row["Tipologia di barriera"] &&
-            row["Tipologia di barriera"].toLowerCase().includes("solo a scadenza")
-          ) {
-            newRow["Barriera"] = `${row["Barriera"]}<br/><small>Europea</small>`;
+        // Modifica i dati secondo le specifiche
+        const modifiedData = filteredData.map(row => {
+          // Aggiungi "Europea" sotto "Barriera capitale" se necessario
+          if (row["Tipologia di barriera"]?.toLowerCase().includes("solo a scadenza")) {
+            row["Barriera capitale"] = `${row["Barriera capitale"]}<br/><small>Europea</small>`;
           }
 
-          // Barriera cedolare + Effetto memoria
-          if (row["Effetto memoria"] && row["Effetto memoria"].toLowerCase() === "si") {
-            newRow["Barriera Cedola"] = `${row["Barriera Cedola"]}<br/><small>Si Memory</small>`;
+          // Aggiungi "Si Memory" sotto "Barriera cedolare" se necessario
+          if (row["Effetto memoria"]?.toLowerCase() === "si") {
+            row["Barriera cedolare"] = `${row["Barriera cedolare"]}<br/><small>Si Memory</small>`;
           }
 
-          data.push(newRow);
-        }
+          return row;
+        });
 
-        // Rimuovi colonne richieste
-        headers = headers.filter(h => h !== "Effetto memoria" && h !== "Tipologia di barriera");
+        // Rimuovi le colonne "Tipologia di barriera" e "Effetto memoria"
+        const headers = Object.keys(modifiedData[0]).filter(h => h !== "Tipologia di barriera" && h !== "Effetto memoria");
 
-        const tableData = data.map(row =>
+        const tableData = modifiedData.map(row =>
           headers.map(h => {
             const value = row[h] || "";
 
@@ -133,7 +127,7 @@
               return gridjs.html(`<a class="isin-link" href="https://www.google.com/search?q=${value}" target="_blank">${value}</a>`);
             }
 
-            // HTML support
+            // Supporto HTML
             if (value.includes("<br/>")) {
               return gridjs.html(value);
             }
@@ -157,4 +151,3 @@
   </script>
 </body>
 </html>
-
