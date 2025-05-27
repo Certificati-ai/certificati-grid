@@ -34,17 +34,17 @@
     .gridjs-table th,
     .gridjs-table td {
       padding: 3px 4px;
-      border-bottom: none;
+      border: none;
       text-align: center;
       vertical-align: middle;
     }
 
-    .gridjs-table tr:not(:last-child) {
-      border-bottom: 1px solid #aaa;
+    .gridjs-table tbody tr {
+      border-bottom: 1px solid #ccc;
     }
 
-    .gridjs-table tr.cert-row + tr:not(.cert-row) {
-      border-top: 8px solid transparent;
+    .gridjs-table tbody tr:not(:first-child):not(:has(td[colspan])) td {
+      border-top: none;
     }
 
     .gridjs-table th {
@@ -101,6 +101,7 @@
 
         let headers = Object.keys(parsed.data[0]);
         const data = [];
+        const certificateCount = new Set();
 
         for (const row of parsed.data) {
           const secondCol = Object.values(row)[1]?.trim();
@@ -108,23 +109,25 @@
 
           const newRow = { ...row };
 
+          certificateCount.add(row["ISIN"]);
+
           if ((row["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
-            newRow["Valuta"] = `${row["Valuta"]}<span class='tagline'>Quanto</span>`;
+            newRow["Valuta"] = `${row["Valuta"]}<div>Quanto</div>`;
           }
 
           if (row["Osservazione"] && row["Prossima Osservazione"]) {
-            newRow["Prossima Osservazione"] = `${row["Prossima Osservazione"]}<span class='tagline'>${row["Osservazione"]}</span>`;
+            newRow["Prossima Osservazione"] = `${row["Prossima Osservazione"]}<div>${row["Osservazione"]}</div>`;
           }
 
           if (row["Tipologia di barriera"]?.toLowerCase().includes("solo a scadenza")) {
-            newRow["Barriera capitale"] = `${row["Barriera capitale"]}<span class='tagline'>Europea</span>`;
+            newRow["Barriera capitale"] = `${row["Barriera capitale"]}<div>Europea</div>`;
           }
 
           const memoria = row["Effetto memoria"];
           if (memoria) {
             const norm = memoria.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
             if (norm === "si") {
-              newRow["Barriera cedolare"] = `${row["Barriera cedolare"]}<span class='tagline'>Si Memory</span>`;
+              newRow["Barriera cedolare"] = `${row["Barriera cedolare"]}<div>Si Memory</div>`;
             }
           }
 
@@ -159,7 +162,7 @@
               return value;
             }
 
-            if (value.includes("<") || value.includes("<span")) {
+            if (value.includes("<") || value.includes("<div")) {
               return gridjs.html(value);
             }
 
@@ -170,11 +173,25 @@
         new gridjs.Grid({
           columns: headers,
           data: tableData,
-          search: true,
+          search: {
+            enabled: true,
+            placeholder: 'Cerca'
+          },
           sort: true,
           pagination: {
             enabled: true,
             limit: 30,
+            summary: true,
+          },
+          language: {
+            pagination: {
+              previous: 'Precedente',
+              next: 'Successivo',
+              showing: 'Certificati mostrati',
+              of: 'su',
+              to: 'a',
+              results: `${certificateCount.size} certificati`
+            }
           },
           resizable: true,
         }).render(document.getElementById("table"));
