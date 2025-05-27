@@ -37,7 +37,6 @@
       padding: 3px 4px;
       text-align: center;
       border: none;
-      word-wrap: break-word;
       word-break: break-word;
       white-space: normal;
     }
@@ -68,11 +67,6 @@
       text-decoration: underline;
     }
 
-    #cert-count {
-      margin-top: 8px;
-      font-size: 10px;
-    }
-
     .row-top-divider td {
       border-top: 2px solid #999 !important;
     }
@@ -83,6 +77,13 @@
 
     .gridjs-summary {
       display: none !important;
+    }
+
+    #cert-count {
+      margin-top: 6px;
+      font-size: 10px;
+      text-align: left;
+      padding-left: 10px;
     }
   </style>
 </head>
@@ -118,7 +119,6 @@
 
           if (currISIN) allISINs.add(currISIN);
 
-          // Decorazioni
           if (row["Quanto (protezione cambio)"]?.toLowerCase().trim() === "sì") {
             row["Valuta"] = `${row["Valuta"]}<div>Quanto</div>`;
           }
@@ -172,6 +172,9 @@
             limit: 30
           },
           language: {
+            search: {
+              placeholder: "Cerca..."
+            },
             pagination: {
               previous: 'Precedente',
               next: 'Successivo',
