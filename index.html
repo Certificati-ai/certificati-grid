@@ -9,9 +9,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     body {
-      font-family: 'Arial', sans-serif;
-      font-size: 12px;
-      padding: 1rem;
+      font-family: Arial, sans-serif;
+      font-size: 10px;
+      padding: 0.5rem;
       background-color: #fff;
     }
 
@@ -19,7 +19,7 @@
       text-align: center;
       margin-bottom: 1rem;
       color: #222;
-      font-size: 1.5rem;
+      font-size: 1.2rem;
     }
 
     #wrapper {
@@ -28,35 +28,42 @@
     }
 
     .gridjs-container {
-      font-size: 11px;
+      font-size: 10px;
     }
 
     .gridjs-table th,
     .gridjs-table td {
-      padding: 6px 6px;
-      border-bottom: 1px solid #eee;
+      padding: 3px 4px;
+      border-bottom: 1px solid #ddd;
       text-align: center;
-    }
-
-    .highlight-green {
-      background-color: #ffff99;
-      color: green;
-      font-weight: bold;
+      vertical-align: middle;
     }
 
     .gridjs-table th {
-      background-color: #f7f7f7;
+      background-color: #f2f2f2;
       font-weight: 600;
-      font-size: 11px;
+      font-size: 10px;
     }
 
-    a.isin-link {
-      color: #003366;
-      text-decoration: none;
+    .highlight-positive {
+      background-color: #d4edda;
+      color: #155724;
       font-weight: bold;
     }
 
-    a.isin-link:hover {
+    .highlight-negative {
+      background-color: #f8d7da;
+      color: #721c24;
+      font-weight: bold;
+    }
+
+    .isin-link {
+      color: #003366;
+      font-weight: bold;
+      text-decoration: none;
+    }
+
+    .isin-link:hover {
       text-decoration: underline;
     }
   </style>
@@ -81,14 +88,18 @@
         const headers = Object.keys(parsed.data[0]);
         const data = parsed.data.map(row => {
           return headers.map(h => {
-            const value = row[h];
+            const value = row[h] || "";
 
-            // Evidenzia valori percentuali
-            if ((h.toLowerCase().includes("performance") || h.toLowerCase().includes("distanza")) && value && value.includes('%')) {
-              return gridjs.html(`<span class="highlight-green">${value}</span>`);
+            // Colorazione condizionale per Performance e Distanza
+            if (h.toLowerCase().includes("performance") || h.toLowerCase().includes("distanza")) {
+              const num = parseFloat(value.replace('%', '').replace(',', '.'));
+              if (!isNaN(num)) {
+                const cls = num >= 0 ? 'highlight-positive' : 'highlight-negative';
+                return gridjs.html(`<span class="${cls}">${value}</span>`);
+              }
             }
 
-            // Link cliccabile per ISIN
+            // Link per ISIN
             if (h.toLowerCase().includes("isin") && value && value.startsWith("CH")) {
               return gridjs.html(`<a class="isin-link" href="https://www.google.com/search?q=${value}" target="_blank">${value}</a>`);
             }
