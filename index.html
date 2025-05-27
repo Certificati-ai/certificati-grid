@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Certificati Finanziari</title>
+  <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+  <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background-color: #f9f9f9;
+    }
+    #wrapper {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tabella Certificati Finanziari</h1>
+  <div id="wrapper">
+    <div id="table"></div>
+  </div>
+
+  <script>
+    const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQWK_CUJUV8yI0jG51rgpz7DMcVTuLt_HqjyTLPdPDkTyIxWBn8G6yozBtVU3bVymtwOCeZPCKmNAsW/pub?output=csv";
+
+    fetch(csvUrl)
+      .then(res => res.text())
+      .then(csv => {
+        const rows = csv.trim().split('\n').map(r => r.split(','));
+        const [header, ...data] = rows;
+
+        new gridjs.Grid({
+          columns: header,
+          data: data,
+          search: true,
+          sort: true,
+          pagination: {
+            enabled: true,
+            limit: 20,
+          },
+          resizable: true,
+          style: {
+            table: {
+              width: '100%',
+            },
+            th: {
+              'text-align': 'center',
+            },
+            td: {
+              'text-align': 'center',
+            },
+          }
+        }).render(document.getElementById("table"));
+      });
+  </script>
+</body>
+</html>
