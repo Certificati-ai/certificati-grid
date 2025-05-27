@@ -34,9 +34,17 @@
     .gridjs-table th,
     .gridjs-table td {
       padding: 3px 4px;
-      border-bottom: 1px solid #ddd;
+      border-bottom: none;
       text-align: center;
       vertical-align: middle;
+    }
+
+    .gridjs-table tr:not(:last-child) {
+      border-bottom: 1px solid #aaa;
+    }
+
+    .gridjs-table tr.cert-row + tr:not(.cert-row) {
+      border-top: 8px solid transparent;
     }
 
     .gridjs-table th {
@@ -66,6 +74,12 @@
     .isin-link:hover {
       text-decoration: underline;
     }
+
+    .tagline {
+      display: block;
+      font-size: 10px;
+      font-weight: normal;
+    }
   </style>
 </head>
 <body>
@@ -94,34 +108,29 @@
 
           const newRow = { ...row };
 
-          // Quanto → sotto Valuta
           if ((row["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
-            newRow["Valuta"] = `${row["Valuta"]}<br/><small>Quanto</small>`;
+            newRow["Valuta"] = `${row["Valuta"]}<span class='tagline'>Quanto</span>`;
           }
 
-          // Osservazione → sotto Prossima Osservazione
           if (row["Osservazione"] && row["Prossima Osservazione"]) {
-            newRow["Prossima Osservazione"] = `${row["Prossima Osservazione"]}<br/><small>${row["Osservazione"]}</small>`;
+            newRow["Prossima Osservazione"] = `${row["Prossima Osservazione"]}<span class='tagline'>${row["Osservazione"]}</span>`;
           }
 
-          // Tipologia di barriera → Europea sotto Barriera capitale
           if (row["Tipologia di barriera"]?.toLowerCase().includes("solo a scadenza")) {
-            newRow["Barriera capitale"] = `${row["Barriera capitale"]}<br/><small>Europea</small>`;
+            newRow["Barriera capitale"] = `${row["Barriera capitale"]}<span class='tagline'>Europea</span>`;
           }
 
-          // Effetto memoria → Si Memory sotto Barriera cedolare
           const memoria = row["Effetto memoria"];
           if (memoria) {
-            const norm = memoria.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+            const norm = memoria.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
             if (norm === "si") {
-              newRow["Barriera cedolare"] = `${row["Barriera cedolare"]}<br/><small>Si Memory</small>`;
+              newRow["Barriera cedolare"] = `${row["Barriera cedolare"]}<span class='tagline'>Si Memory</span>`;
             }
           }
 
           data.push(newRow);
         }
 
-        // Rimuovi colonne: Effetto memoria, Tipologia di barriera, Quanto, Osservazione, Link
         headers = headers.filter(h =>
           h !== "Effetto memoria" &&
           h !== "Tipologia di barriera" &&
@@ -134,7 +143,6 @@
           headers.map(h => {
             let value = row[h] || "";
 
-            // Evidenziazione per performance / distanza
             if (h.toLowerCase().includes("performance") || h.toLowerCase().includes("distanza")) {
               const num = parseFloat(value.replace('%', '').replace(',', '.'));
               if (!isNaN(num)) {
@@ -143,7 +151,6 @@
               }
             }
 
-            // ISIN link → con URL da colonna "Link"
             if (h.toLowerCase() === "isin" && value.startsWith("CH")) {
               const link = row["Link"]?.trim();
               if (link && link.startsWith("http")) {
@@ -152,8 +159,7 @@
               return value;
             }
 
-            // HTML (br, small)
-            if (value.includes("<br/>")) {
+            if (value.includes("<") || value.includes("<span")) {
               return gridjs.html(value);
             }
 
