@@ -3,22 +3,61 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Certificati Finanziari</title>
+  <title>Tabella Certificati Finanziari</title>
   <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
   <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       padding: 2rem;
-      background-color: #f9f9f9;
+      background-color: #fff;
     }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+      color: #222;
+      font-size: 1.8rem;
+    }
+
     #wrapper {
       max-width: 100%;
       overflow-x: auto;
     }
-    h1 {
+
+    .gridjs-container {
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    .gridjs-table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    .gridjs-table th,
+    .gridjs-table td {
+      padding: 10px 8px;
+      border-bottom: 1px solid #eee;
       text-align: center;
-      margin-bottom: 2rem;
+      vertical-align: middle;
+    }
+
+    .gridjs-table tr:not(:last-child) {
+      border-bottom: 1px solid #ddd; /* linea sottile tra righe (certificati) */
+    }
+
+    .gridjs-table th {
+      background-color: #f7f7f7;
+      color: #444;
+      font-weight: 600;
+      font-size: 13px;
+      border-bottom: 2px solid #ccc;
+    }
+
+    .gridjs-search {
+      margin-bottom: 1rem;
     }
   </style>
 </head>
@@ -29,12 +68,12 @@
   </div>
 
   <script>
-    const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQWK_CUJUV8yI0jG51rgpz7DMcVTuLt_HqjyTLPdPDkTyIxWBn8G6yozBtVU3bVymtwOCeZPCKmNAsW/pub?output=csv";
+    const csvUrl = "INSERISCI_LA_TUA_URL_CSV_GOOGLE_SHEET";
 
     fetch(csvUrl)
       .then(res => res.text())
       .then(csv => {
-        const rows = csv.trim().split('\n').map(r => r.split(','));
+        const rows = csv.trim().split('\\n').map(r => r.split(','));
         const [header, ...data] = rows;
 
         new gridjs.Grid({
