@@ -94,18 +94,28 @@
 
           const newRow = { ...row };
 
-          // Aggiungi "Europea" sotto Barriera capitale se necessario
+          // 1. Se "Quanto (protezione cambio)" = "Sì", aggiungi "Quanto" sotto "Valuta"
+          if ((row["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
+            newRow["Valuta"] = `${row["Valuta"]}<br/><small>Quanto</small>`;
+          }
+
+          // 2. Unisci "Osservazione" sotto "Prossima Osservazione"
+          if (row["Osservazione"] && row["Prossima Osservazione"]) {
+            newRow["Prossima Osservazione"] = `${row["Prossima Osservazione"]}<br/><small>${row["Osservazione"]}</small>`;
+          }
+
+          // "Europea" se barriera solo a scadenza
           if (row["Tipologia di barriera"]?.toLowerCase().includes("solo a scadenza")) {
             newRow["Barriera capitale"] = `${row["Barriera capitale"]}<br/><small>Europea</small>`;
           }
 
-          // Aggiungi "Si Memory" sotto Barriera cedolare se Effetto memoria = "Sì"
+          // "Si Memory" se Effetto memoria = "Sì"
           const memoria = row["Effetto memoria"];
           if (memoria) {
             const normalizzato = memoria
               .toLowerCase()
               .normalize("NFD")
-              .replace(/[\u0300-\u036f]/g, "") // rimuove accenti
+              .replace(/[\u0300-\u036f]/g, "")
               .trim();
 
             if (normalizzato === "si") {
@@ -116,14 +126,19 @@
           data.push(newRow);
         }
 
-        // Rimuovi colonne inutili
-        headers = headers.filter(h => h !== "Tipologia di barriera" && h !== "Effetto memoria");
+        // Rimuovi colonne da nascondere
+        headers = headers.filter(h =>
+          h !== "Effetto memoria" &&
+          h !== "Tipologia di barriera" &&
+          h !== "Quanto (protezione cambio)" &&
+          h !== "Osservazione"
+        );
 
         const tableData = data.map(row =>
           headers.map(h => {
             const value = row[h] || "";
 
-            // Evidenziazione Performance / Distanza
+            // Evidenziazione condizionale
             if (h.toLowerCase().includes("performance") || h.toLowerCase().includes("distanza")) {
               const num = parseFloat(value.replace('%', '').replace(',', '.'));
               if (!isNaN(num)) {
