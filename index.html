@@ -45,7 +45,7 @@
     }
 
     .gridjs-table tr:not(:last-child) {
-      border-bottom: 1px solid #ddd; /* linea sottile tra righe (certificati) */
+      border-bottom: 1px solid #ddd;
     }
 
     .gridjs-table th {
@@ -73,7 +73,8 @@
     fetch(csvUrl)
       .then(res => res.text())
       .then(csv => {
-        const rows = csv.trim().split('\\n').map(r => r.split(','));
+        const delimiter = csv.includes(';') ? ';' : ',';
+        const rows = csv.trim().split('\\n').map(r => r.split(delimiter));
         const [header, ...data] = rows;
 
         new gridjs.Grid({
