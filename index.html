@@ -94,31 +94,26 @@
 
           const newRow = { ...row };
 
-          // 1. Se "Quanto (protezione cambio)" = "Sì", aggiungi "Quanto" sotto "Valuta"
+          // Quanto → sotto Valuta
           if ((row["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
             newRow["Valuta"] = `${row["Valuta"]}<br/><small>Quanto</small>`;
           }
 
-          // 2. Unisci "Osservazione" sotto "Prossima Osservazione"
+          // Osservazione → sotto Prossima Osservazione
           if (row["Osservazione"] && row["Prossima Osservazione"]) {
             newRow["Prossima Osservazione"] = `${row["Prossima Osservazione"]}<br/><small>${row["Osservazione"]}</small>`;
           }
 
-          // "Europea" se barriera solo a scadenza
+          // Tipologia di barriera → Europea sotto Barriera capitale
           if (row["Tipologia di barriera"]?.toLowerCase().includes("solo a scadenza")) {
             newRow["Barriera capitale"] = `${row["Barriera capitale"]}<br/><small>Europea</small>`;
           }
 
-          // "Si Memory" se Effetto memoria = "Sì"
+          // Effetto memoria → Si Memory sotto Barriera cedolare
           const memoria = row["Effetto memoria"];
           if (memoria) {
-            const normalizzato = memoria
-              .toLowerCase()
-              .normalize("NFD")
-              .replace(/[\u0300-\u036f]/g, "")
-              .trim();
-
-            if (normalizzato === "si") {
+            const norm = memoria.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+            if (norm === "si") {
               newRow["Barriera cedolare"] = `${row["Barriera cedolare"]}<br/><small>Si Memory</small>`;
             }
           }
@@ -126,19 +121,20 @@
           data.push(newRow);
         }
 
-        // Rimuovi colonne da nascondere
+        // Rimuovi colonne: Effetto memoria, Tipologia di barriera, Quanto, Osservazione, Link
         headers = headers.filter(h =>
           h !== "Effetto memoria" &&
           h !== "Tipologia di barriera" &&
           h !== "Quanto (protezione cambio)" &&
-          h !== "Osservazione"
+          h !== "Osservazione" &&
+          h !== "Link"
         );
 
         const tableData = data.map(row =>
           headers.map(h => {
-            const value = row[h] || "";
+            let value = row[h] || "";
 
-            // Evidenziazione condizionale
+            // Evidenziazione per performance / distanza
             if (h.toLowerCase().includes("performance") || h.toLowerCase().includes("distanza")) {
               const num = parseFloat(value.replace('%', '').replace(',', '.'));
               if (!isNaN(num)) {
@@ -147,12 +143,16 @@
               }
             }
 
-            // ISIN link
-            if (h.toLowerCase().includes("isin") && value.startsWith("CH")) {
-              return gridjs.html(`<a class="isin-link" href="https://www.google.com/search?q=${value}" target="_blank">${value}</a>`);
+            // ISIN link → con URL da colonna "Link"
+            if (h.toLowerCase() === "isin" && value.startsWith("CH")) {
+              const link = row["Link"]?.trim();
+              if (link && link.startsWith("http")) {
+                return gridjs.html(`<a class="isin-link" href="${link}" target="_blank">${value}</a>`);
+              }
+              return value;
             }
 
-            // HTML support
+            // HTML (br, small)
             if (value.includes("<br/>")) {
               return gridjs.html(value);
             }
@@ -176,3 +176,4 @@
   </script>
 </body>
 </html>
+
