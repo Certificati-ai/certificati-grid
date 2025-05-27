@@ -85,12 +85,41 @@
           skipEmptyLines: true
         });
 
-        const headers = Object.keys(parsed.data[0]);
-        const data = parsed.data.map(row => {
-          return headers.map(h => {
+        let headers = Object.keys(parsed.data[0]);
+        const data = [];
+
+        for (const row of parsed.data) {
+          // Salta righe con "----------" nella seconda colonna
+          const firstCol = Object.values(row)[1]?.trim();
+          if (firstCol === "----------") continue;
+
+          // Clone riga per modifica
+          const newRow = { ...row };
+
+          // Barriera capitale + Tipologia
+          if (
+            row["Tipologia di barriera"] &&
+            row["Tipologia di barriera"].toLowerCase().includes("solo a scadenza")
+          ) {
+            newRow["Barriera"] = `${row["Barriera"]}<br/><small>Europea</small>`;
+          }
+
+          // Barriera cedolare + Effetto memoria
+          if (row["Effetto memoria"] && row["Effetto memoria"].toLowerCase() === "si") {
+            newRow["Barriera Cedola"] = `${row["Barriera Cedola"]}<br/><small>Si Memory</small>`;
+          }
+
+          data.push(newRow);
+        }
+
+        // Rimuovi colonne richieste
+        headers = headers.filter(h => h !== "Effetto memoria" && h !== "Tipologia di barriera");
+
+        const tableData = data.map(row =>
+          headers.map(h => {
             const value = row[h] || "";
 
-            // Colorazione condizionale per Performance e Distanza
+            // Evidenziazione condizionale
             if (h.toLowerCase().includes("performance") || h.toLowerCase().includes("distanza")) {
               const num = parseFloat(value.replace('%', '').replace(',', '.'));
               if (!isNaN(num)) {
@@ -99,18 +128,23 @@
               }
             }
 
-            // Link per ISIN
-            if (h.toLowerCase().includes("isin") && value && value.startsWith("CH")) {
+            // ISIN link
+            if (h.toLowerCase().includes("isin") && value.startsWith("CH")) {
               return gridjs.html(`<a class="isin-link" href="https://www.google.com/search?q=${value}" target="_blank">${value}</a>`);
             }
 
+            // HTML support
+            if (value.includes("<br/>")) {
+              return gridjs.html(value);
+            }
+
             return value;
-          });
-        });
+          })
+        );
 
         new gridjs.Grid({
           columns: headers,
-          data: data,
+          data: tableData,
           search: true,
           sort: true,
           pagination: {
@@ -123,3 +157,4 @@
   </script>
 </body>
 </html>
+
