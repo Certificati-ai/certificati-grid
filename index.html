@@ -4,23 +4,22 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Tabella Certificati Finanziari</title>
-  <!-- Grid.js -->
   <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
   <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
-  <!-- PapaParse -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      padding: 2rem;
+      font-family: 'Arial', sans-serif;
+      font-size: 12px;
+      padding: 1rem;
       background-color: #fff;
     }
 
     h1 {
       text-align: center;
-      margin-bottom: 2rem;
+      margin-bottom: 1rem;
       color: #222;
-      font-size: 1.8rem;
+      font-size: 1.5rem;
     }
 
     #wrapper {
@@ -29,45 +28,36 @@
     }
 
     .gridjs-container {
-      font-size: 14px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-    }
-
-    .gridjs-table {
-      border-collapse: collapse;
-      width: 100%;
+      font-size: 11px;
     }
 
     .gridjs-table th,
     .gridjs-table td {
-      padding: 10px 8px;
+      padding: 6px 6px;
       border-bottom: 1px solid #eee;
       text-align: center;
-      vertical-align: middle;
     }
 
-    .gridjs-table tr:not(:last-child) {
-      border-bottom: 1px solid #ddd;
+    .highlight-green {
+      background-color: #ffff99;
+      color: green;
+      font-weight: bold;
     }
 
     .gridjs-table th {
       background-color: #f7f7f7;
-      color: #444;
       font-weight: 600;
-      font-size: 13px;
-      border-bottom: 2px solid #ccc;
+      font-size: 11px;
     }
 
-    .gridjs-search {
-      margin-bottom: 1rem;
-    }
-
-    .error {
-      text-align: center;
-      color: red;
+    a.isin-link {
+      color: #003366;
+      text-decoration: none;
       font-weight: bold;
-      margin-top: 2rem;
+    }
+
+    a.isin-link:hover {
+      text-decoration: underline;
     }
   </style>
 </head>
@@ -88,15 +78,24 @@
           skipEmptyLines: true
         });
 
-        console.log("Parsed CSV:", parsed);
-
-        if (!parsed.data || parsed.data.length === 0) {
-          document.getElementById("table").innerHTML = "<p class='error'>⚠️ Nessun dato trovato nel CSV. Controlla se è vuoto o formattato male.</p>";
-          return;
-        }
-
         const headers = Object.keys(parsed.data[0]);
-        const data = parsed.data.map(row => headers.map(h => row[h]));
+        const data = parsed.data.map(row => {
+          return headers.map(h => {
+            const value = row[h];
+
+            // Evidenzia valori percentuali
+            if ((h.toLowerCase().includes("performance") || h.toLowerCase().includes("distanza")) && value && value.includes('%')) {
+              return gridjs.html(`<span class="highlight-green">${value}</span>`);
+            }
+
+            // Link cliccabile per ISIN
+            if (h.toLowerCase().includes("isin") && value && value.startsWith("CH")) {
+              return gridjs.html(`<a class="isin-link" href="https://www.google.com/search?q=${value}" target="_blank">${value}</a>`);
+            }
+
+            return value;
+          });
+        });
 
         new gridjs.Grid({
           columns: headers,
@@ -105,25 +104,10 @@
           sort: true,
           pagination: {
             enabled: true,
-            limit: 20,
+            limit: 30,
           },
           resizable: true,
-          style: {
-            table: {
-              width: '100%',
-            },
-            th: {
-              'text-align': 'center',
-            },
-            td: {
-              'text-align': 'center',
-            },
-          }
         }).render(document.getElementById("table"));
-      })
-      .catch(error => {
-        document.getElementById("table").innerHTML = "<p class='error'>❌ Errore nel caricamento del CSV.</p>";
-        console.error("Errore fetch:", error);
       });
   </script>
 </body>
