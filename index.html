@@ -62,6 +62,13 @@
     .gridjs-search {
       margin-bottom: 1rem;
     }
+
+    .error {
+      text-align: center;
+      color: red;
+      font-weight: bold;
+      margin-top: 2rem;
+    }
   </style>
 </head>
 <body>
@@ -80,6 +87,13 @@
           header: true,
           skipEmptyLines: true
         });
+
+        console.log("Parsed CSV:", parsed);
+
+        if (!parsed.data || parsed.data.length === 0) {
+          document.getElementById("table").innerHTML = "<p class='error'>⚠️ Nessun dato trovato nel CSV. Controlla se è vuoto o formattato male.</p>";
+          return;
+        }
 
         const headers = Object.keys(parsed.data[0]);
         const data = parsed.data.map(row => headers.map(h => row[h]));
@@ -106,6 +120,10 @@
             },
           }
         }).render(document.getElementById("table"));
+      })
+      .catch(error => {
+        document.getElementById("table").innerHTML = "<p class='error'>❌ Errore nel caricamento del CSV.</p>";
+        console.error("Errore fetch:", error);
       });
   </script>
 </body>
