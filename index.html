@@ -76,9 +76,14 @@
     }
 
     .cert-counter {
-      padding: 6px 10px;
       font-size: 10px;
-      text-align: left;
+      padding-left: 8px;
+      color: #6c757d;
+    }
+
+    .cert-counter strong {
+      color: #212529;
+      font-weight: 600;
     }
   </style>
 </head>
@@ -105,15 +110,12 @@
         );
 
         const data = [];
-        let prevISIN = null;
 
-        for (let i = 0; i < raw.length; i++) {
-          const row = raw[i];
+        for (const row of raw) {
           const currISIN = row["ISIN"];
-
           if (currISIN) allISINs.add(currISIN);
 
-          if (row["Quanto (protezione cambio)"]?.toLowerCase().trim() === "sì") {
+          if ((row["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
             row["Valuta"] = `${row["Valuta"]}<div>Quanto</div>`;
           }
 
@@ -197,12 +199,16 @@
             }
           });
 
-          // ✅ Inserisci il messaggio nella sezione corretta (sopra pagination)
+          // ❌ Rimuovi il messaggio predefinito "Showing x to y"
+          const summary = document.querySelector(".gridjs-summary");
+          if (summary) summary.remove();
+
+          // ✅ Inserisci il messaggio personalizzato
           const pagination = document.querySelector(".gridjs-pagination");
           if (pagination) {
             const countDiv = document.createElement("div");
             countDiv.className = "cert-counter";
-            countDiv.textContent = `Certificati mostrati ${visibleISINs.size} su ${allISINs.size}`;
+            countDiv.innerHTML = `Certificati mostrati <strong>${visibleISINs.size}</strong> su <strong>${allISINs.size}</strong>`;
             pagination.parentNode.insertBefore(countDiv, pagination);
           }
         }, 800);
@@ -210,3 +216,4 @@
   </script>
 </body>
 </html>
+
