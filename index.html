@@ -75,15 +75,10 @@
       border-bottom: 2px solid #999 !important;
     }
 
-    .gridjs-summary {
-      display: none !important;
-    }
-
     .cert-counter {
       padding: 6px 10px;
       font-size: 10px;
       text-align: left;
-      border-top: 1px solid #ccc;
     }
   </style>
 </head>
@@ -202,12 +197,14 @@
             }
           });
 
-          // Inserisci la riga conteggio dentro la griglia
-          const container = document.querySelector(".gridjs-container");
-          const countDiv = document.createElement("div");
-          countDiv.className = "cert-counter";
-          countDiv.textContent = `Certificati mostrati ${visibleISINs.size} su ${allISINs.size}`;
-          container.appendChild(countDiv);
+          // ✅ Inserisci il messaggio nella sezione corretta (sopra pagination)
+          const pagination = document.querySelector(".gridjs-pagination");
+          if (pagination) {
+            const countDiv = document.createElement("div");
+            countDiv.className = "cert-counter";
+            countDiv.textContent = `Certificati mostrati ${visibleISINs.size} su ${allISINs.size}`;
+            pagination.parentNode.insertBefore(countDiv, pagination);
+          }
         }, 800);
       });
   </script>
