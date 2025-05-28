@@ -79,18 +79,17 @@
       display: none !important;
     }
 
-    #cert-count {
-      margin-top: 6px;
+    .cert-counter {
+      padding: 6px 10px;
       font-size: 10px;
       text-align: left;
-      padding-left: 10px;
+      border-top: 1px solid #ccc;
     }
   </style>
 </head>
 <body>
   <h1>Tabella Certificati Finanziari</h1>
   <div id="table"></div>
-  <div id="cert-count"></div>
 
   <script>
     const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQWK_CUJUV8yI0jG51rgpz7DMcVTuLt_HqjyTLPdPDkTyIxWBn8G6yozBtVU3bVymtwOCeZPCKmNAsW/pub?output=csv";
@@ -203,8 +202,12 @@
             }
           });
 
-          document.getElementById("cert-count").textContent =
-            `Certificati mostrati ${visibleISINs.size} su ${allISINs.size}`;
+          // Inserisci la riga conteggio dentro la griglia
+          const container = document.querySelector(".gridjs-container");
+          const countDiv = document.createElement("div");
+          countDiv.className = "cert-counter";
+          countDiv.textContent = `Certificati mostrati ${visibleISINs.size} su ${allISINs.size}`;
+          container.appendChild(countDiv);
         }, 800);
       });
   </script>
