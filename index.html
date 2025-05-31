@@ -29,22 +29,71 @@
 
     .gridjs-table {
       width: 100%;
-      table-layout: fixed;
+      table-layout: auto;
     }
 
     .gridjs-table th,
     .gridjs-table td {
-      padding: 3px 4px;
-      text-align: center;
-      border: none;
+      padding: 6px 8px;
       word-break: break-word;
       white-space: normal;
     }
 
-    .gridjs-table th {
-      background: #f2f2f2;
-      font-weight: 600;
-      line-height: 1.2;
+    /* Numeri allineati a destra */
+    .gridjs-table td:nth-child(1),
+    .gridjs-table td:nth-child(6),
+    .gridjs-table td:nth-child(7),
+    .gridjs-table td:nth-child(8),
+    .gridjs-table td:nth-child(11),
+    .gridjs-table td:nth-child(12),
+    .gridjs-table td:nth-child(13),
+    .gridjs-table td:nth-child(14),
+    .gridjs-table td:nth-child(16) {
+      text-align: right;
+    }
+
+    /* Testi allineati a sinistra */
+    .gridjs-table td:nth-child(2),
+    .gridjs-table td:nth-child(3),
+    .gridjs-table td:nth-child(9),
+    .gridjs-table td:nth-child(10),
+    .gridjs-table td:nth-child(17),
+    .gridjs-table td:nth-child(18) {
+      text-align: left;
+    }
+
+    /* Hover sulle righe */
+    .gridjs-table tbody tr:hover {
+      background-color: #f8f9fa;
+    }
+
+    /* Colonne con larghezza */
+    .gridjs-table th:nth-child(1),
+    .gridjs-table th:nth-child(6),
+    .gridjs-table th:nth-child(7),
+    .gridjs-table th:nth-child(8),
+    .gridjs-table th:nth-child(11),
+    .gridjs-table th:nth-child(12),
+    .gridjs-table th:nth-child(13),
+    .gridjs-table th:nth-child(14),
+    .gridjs-table th:nth-child(16),
+    .gridjs-table th:nth-child(17),
+    .gridjs-table th:nth-child(18) {
+      width: 80px;
+    }
+
+    .gridjs-table th:nth-child(2) { /* Tipologia */
+      width: 150px;
+    }
+
+    .gridjs-table th:nth-child(3) { /* Sottostante */
+      width: 250px;
+    }
+
+    .gridjs-table th:nth-child(9) { /* Meccanismo di richiamo / protezione */
+      width: 120px;
+      white-space: normal;
+      word-break: break-word;
     }
 
     .positive {
@@ -199,11 +248,11 @@
             }
           });
 
-          // ❌ Rimuovi il messaggio predefinito "Showing x to y"
+          // Rimuove il messaggio predefinito
           const summary = document.querySelector(".gridjs-summary");
           if (summary) summary.remove();
 
-          // ✅ Inserisci il messaggio personalizzato
+          // Inserisce il messaggio personalizzato
           const pagination = document.querySelector(".gridjs-pagination");
           if (pagination) {
             const countDiv = document.createElement("div");
