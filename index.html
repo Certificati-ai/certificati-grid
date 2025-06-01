@@ -39,7 +39,6 @@
       white-space: normal;
     }
 
-    /* Numeri allineati a destra */
     .gridjs-table td:nth-child(1),
     .gridjs-table td:nth-child(6),
     .gridjs-table td:nth-child(7),
@@ -52,7 +51,6 @@
       text-align: right;
     }
 
-    /* Testi allineati a sinistra */
     .gridjs-table td:nth-child(2),
     .gridjs-table td:nth-child(3),
     .gridjs-table td:nth-child(9),
@@ -62,38 +60,30 @@
       text-align: left;
     }
 
-    /* Hover sulle righe */
-    .gridjs-table tbody tr:hover {
-      background-color: #f8f9fa;
+    /* Hover elegante su blocco ISIN */
+    .hovered {
+      background-color: #f0f4f8;
+      border-left: 3px solid #3399ff;
     }
 
-    /* Colonne con larghezza */
-    .gridjs-table th:nth-child(1),
-    .gridjs-table th:nth-child(6),
-    .gridjs-table th:nth-child(7),
-    .gridjs-table th:nth-child(8),
-    .gridjs-table th:nth-child(11),
-    .gridjs-table th:nth-child(12),
-    .gridjs-table th:nth-child(13),
-    .gridjs-table th:nth-child(14),
-    .gridjs-table th:nth-child(16),
-    .gridjs-table th:nth-child(17),
-    .gridjs-table th:nth-child(18) {
-      width: 80px;
+    .row-top-divider td {
+      border-top: 2px solid #999 !important;
     }
 
-    .gridjs-table th:nth-child(2) { /* Tipologia */
-      width: 150px;
+    .row-bottom-divider td {
+      border-bottom: 2px solid #999 !important;
     }
 
-    .gridjs-table th:nth-child(3) { /* Sottostante */
-      width: 250px;
+    .cert-counter {
+      font-size: 10px;
+      padding-left: 8px;
+      color: #6c757d;
+      margin-top: 10px;
     }
 
-    .gridjs-table th:nth-child(9) { /* Meccanismo di richiamo / protezione */
-      width: 120px;
-      white-space: normal;
-      word-break: break-word;
+    .cert-counter strong {
+      color: #212529;
+      font-weight: 600;
     }
 
     .positive {
@@ -115,25 +105,6 @@
     .isin-link:hover {
       text-decoration: underline;
     }
-
-    .row-top-divider td {
-      border-top: 2px solid #999 !important;
-    }
-
-    .row-bottom-divider td {
-      border-bottom: 2px solid #999 !important;
-    }
-
-    .cert-counter {
-      font-size: 10px;
-      padding-left: 8px;
-      color: #6c757d;
-    }
-
-    .cert-counter strong {
-      color: #212529;
-      font-weight: 600;
-    }
   </style>
 </head>
 <body>
@@ -148,6 +119,15 @@
       .then(csv => {
         const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
         const raw = parsed.data.filter(row => Object.values(row)[1]?.trim() !== "----------");
+
+        // Ripulisco numeri da apostrofo
+        for (const row of raw) {
+          for (const key in row) {
+            if (typeof row[key] === "string" && row[key].match(/^\d{1,3}'\d{3}/)) {
+              row[key] = row[key].replace(/'/g, "");
+            }
+          }
+        }
 
         const allISINs = new Set();
         const headers = Object.keys(raw[0]).filter(h =>
@@ -164,23 +144,6 @@
           const currISIN = row["ISIN"];
           if (currISIN) allISINs.add(currISIN);
 
-          if ((row["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
-            row["Valuta"] = `${row["Valuta"]}<div>Quanto</div>`;
-          }
-
-          if (row["Osservazione"] && row["Prossima Osservazione"]) {
-            row["Prossima Osservazione"] = `${row["Prossima Osservazione"]}<div>${row["Osservazione"]}</div>`;
-          }
-
-          if (row["Tipologia di barriera"]?.toLowerCase().includes("solo a scadenza")) {
-            row["Barriera capitale"] = `${row["Barriera capitale"]}<div>Europea</div>`;
-          }
-
-          const mem = row["Effetto memoria"];
-          if (mem?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() === "si") {
-            row["Barriera cedolare"] = `${row["Barriera cedolare"]}<div>Si Memory</div>`;
-          }
-
           const formattedRow = headers.map(h => {
             const val = row[h] || "";
 
@@ -194,10 +157,9 @@
 
             if (h === "ISIN" && val.startsWith("CH")) {
               const link = row["Link"]?.trim();
-              return gridjs.html(`<a class="isin-link" href="${link}" target="_blank">${val}</a>`);
+              return gridjs.html(`<a class="isin-link" href="${link}" target="_blank">\${val}</a>`);
             }
 
-            if (val.includes("<div>")) return gridjs.html(val);
             return val;
           });
 
@@ -209,33 +171,28 @@
           data: data.map(d => d.row),
           search: {
             enabled: true,
+            keyword: '',
             placeholder: "Cerca..."
           },
           sort: true,
-          pagination: {
-            enabled: true,
-            limit: 30
-          },
+          pagination: false,
           language: {
             search: {
               placeholder: "Cerca..."
             },
-            pagination: {
-              previous: 'Precedente',
-              next: 'Successivo',
-              loading: 'Caricamento...'
-            }
+            loading: 'Caricamento...'
           }
         });
 
         grid.render(document.getElementById("table"));
 
-        setTimeout(() => {
+        const updateCounterAndHover = () => {
           const rows = document.querySelectorAll(".gridjs-table tbody tr");
           const visibleISINs = new Set();
           let prev = null;
 
           rows.forEach((tr, i) => {
+            tr.classList.remove("hovered");
             const isinCell = tr.querySelector("td:last-child a");
             const currISIN = isinCell?.textContent.trim();
 
@@ -246,21 +203,45 @@
               if (i > 0) rows[i - 1].classList.add("row-bottom-divider");
               prev = currISIN;
             }
+
+            // Hover elegante su gruppo
+            tr.addEventListener("mouseenter", () => {
+              rows.forEach(r => {
+                if (r.querySelector("td:last-child a")?.textContent.trim() === currISIN) {
+                  r.classList.add("hovered");
+                }
+              });
+            });
+
+            tr.addEventListener("mouseleave", () => {
+              rows.forEach(r => r.classList.remove("hovered"));
+            });
           });
 
-          // Rimuove il messaggio predefinito
-          const summary = document.querySelector(".gridjs-summary");
-          if (summary) summary.remove();
+          const oldCounter = document.querySelector(".cert-counter");
+          if (oldCounter) oldCounter.remove();
 
-          // Inserisce il messaggio personalizzato
-          const pagination = document.querySelector(".gridjs-pagination");
+          const pagination = document.querySelector(".gridjs-wrapper");
           if (pagination) {
             const countDiv = document.createElement("div");
             countDiv.className = "cert-counter";
-            countDiv.innerHTML = `Certificati mostrati <strong>${visibleISINs.size}</strong> su <strong>${allISINs.size}</strong>`;
+            countDiv.innerHTML = `Certificati mostrati <strong>\${visibleISINs.size}</strong> su <strong>\${allISINs.size}</strong>`;
             pagination.parentNode.insertBefore(countDiv, pagination);
           }
-        }, 800);
+
+          // Rimuove il messaggio "Showing x to y of z"
+          const summaries = document.querySelectorAll(".gridjs-summary");
+          summaries.forEach(s => s.remove());
+        };
+
+        setTimeout(updateCounterAndHover, 800);
+
+        // Update dinamico dopo ricerca
+        document.addEventListener("input", (e) => {
+          if (e.target.closest("input[type='search']")) {
+            setTimeout(updateCounterAndHover, 500);
+          }
+        });
       });
   </script>
 </body>
