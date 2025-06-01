@@ -165,20 +165,20 @@
           if (currISIN) allISINs.add(currISIN);
 
           if ((row["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
-            row["Valuta"] = ${row["Valuta"]}<div>Quanto</div>;
+            row["Valuta"] = `${row["Valuta"]}<div>Quanto</div>`;
           }
 
           if (row["Osservazione"] && row["Prossima Osservazione"]) {
-            row["Prossima Osservazione"] = ${row["Prossima Osservazione"]}<div>${row["Osservazione"]}</div>;
+            row["Prossima Osservazione"] = `${row["Prossima Osservazione"]}<div>${row["Osservazione"]}</div>`;
           }
 
           if (row["Tipologia di barriera"]?.toLowerCase().includes("solo a scadenza")) {
-            row["Barriera capitale"] = ${row["Barriera capitale"]}<div>Europea</div>;
+            row["Barriera capitale"] = `${row["Barriera capitale"]}<div>Europea</div>`;
           }
 
           const mem = row["Effetto memoria"];
           if (mem?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() === "si") {
-            row["Barriera cedolare"] = ${row["Barriera cedolare"]}<div>Si Memory</div>;
+            row["Barriera cedolare"] = `${row["Barriera cedolare"]}<div>Si Memory</div>`;
           }
 
           const formattedRow = headers.map(h => {
@@ -188,13 +188,13 @@
               const num = parseFloat(val.replace('%', '').replace(',', '.'));
               if (!isNaN(num)) {
                 const cls = num >= 0 ? 'positive' : 'negative';
-                return gridjs.html(<span class="${cls}">${val}</span>);
+                return gridjs.html(`<span class="${cls}">${val}</span>`);
               }
             }
 
             if (h === "ISIN" && val.startsWith("CH")) {
               const link = row["Link"]?.trim();
-              return gridjs.html(<a class="isin-link" href="${link}" target="_blank">${val}</a>);
+              return gridjs.html(`<a class="isin-link" href="${link}" target="_blank">${val}</a>`);
             }
 
             if (val.includes("<div>")) return gridjs.html(val);
@@ -257,7 +257,7 @@
           if (pagination) {
             const countDiv = document.createElement("div");
             countDiv.className = "cert-counter";
-            countDiv.innerHTML = Certificati mostrati <strong>${visibleISINs.size}</strong> su <strong>${allISINs.size}</strong>;
+            countDiv.innerHTML = `Certificati mostrati <strong>${visibleISINs.size}</strong> su <strong>${allISINs.size}</strong>`;
             pagination.parentNode.insertBefore(countDiv, pagination);
           }
         }, 800);
