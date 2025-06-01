@@ -39,7 +39,6 @@
       white-space: normal;
     }
 
-    /* Numeri allineati a destra */
     .gridjs-table td:nth-child(1),
     .gridjs-table td:nth-child(6),
     .gridjs-table td:nth-child(7),
@@ -52,7 +51,6 @@
       text-align: right;
     }
 
-    /* Testi allineati a sinistra */
     .gridjs-table td:nth-child(2),
     .gridjs-table td:nth-child(3),
     .gridjs-table td:nth-child(9),
@@ -62,16 +60,32 @@
       text-align: left;
     }
 
-    /* Hover elegante su tutte le righe con stesso ISIN */
-    .hover-highlight {
-      background-color: #f2f7ff !important;
+    .gridjs-table th:nth-child(1),
+    .gridjs-table th:nth-child(6),
+    .gridjs-table th:nth-child(7),
+    .gridjs-table th:nth-child(8),
+    .gridjs-table th:nth-child(11),
+    .gridjs-table th:nth-child(12),
+    .gridjs-table th:nth-child(13),
+    .gridjs-table th:nth-child(14),
+    .gridjs-table th:nth-child(16),
+    .gridjs-table th:nth-child(17),
+    .gridjs-table th:nth-child(18) {
+      width: 80px;
     }
 
-    .row-top-divider td {
-      border-top: 2px solid #999 !important;
+    .gridjs-table th:nth-child(2) {
+      width: 150px;
     }
-    .row-bottom-divider td {
-      border-bottom: 2px solid #999 !important;
+
+    .gridjs-table th:nth-child(3) {
+      width: 250px;
+    }
+
+    .gridjs-table th:nth-child(9) {
+      width: 120px;
+      white-space: normal;
+      word-break: break-word;
     }
 
     .positive {
@@ -94,11 +108,20 @@
       text-decoration: underline;
     }
 
+    .row-top-divider td {
+      border-top: 2px solid #999 !important;
+    }
+
+    .row-bottom-divider td {
+      border-bottom: 2px solid #999 !important;
+    }
+
     .cert-counter {
       font-size: 10px;
       padding-left: 8px;
       color: #6c757d;
     }
+
     .cert-counter strong {
       color: #212529;
       font-weight: 600;
@@ -117,6 +140,14 @@
       .then(csv => {
         const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
         const raw = parsed.data.filter(row => Object.values(row)[1]?.trim() !== "----------");
+
+        raw.forEach(row => {
+          for (const key in row) {
+            if (typeof row[key] === "string") {
+              row[key] = row[key].replace(/'/g, "");
+            }
+          }
+        });
 
         const allISINs = new Set();
         const headers = Object.keys(raw[0]).filter(h =>
@@ -151,12 +182,7 @@
           }
 
           const formattedRow = headers.map(h => {
-            let val = row[h] || "";
-
-            // Rimuove ' dai numeri
-            if (typeof val === "string" && val.match(/^\d{1,3}'\d{3}/)) {
-              val = val.replace(/'/g, '');
-            }
+            const val = row[h] || "";
 
             if (h.toLowerCase() === "performance") {
               const num = parseFloat(val.replace('%', '').replace(',', '.'));
@@ -178,7 +204,7 @@
           data.push({ row: formattedRow, isin: currISIN });
         }
 
-        const grid = new gridjs.Grid({
+        let grid = new gridjs.Grid({
           columns: headers,
           data: data.map(d => d.row),
           search: {
@@ -191,76 +217,124 @@
             limit: 30
           },
           language: {
-            search: {
-              placeholder: "Cerca..."
-            },
+            search: { placeholder: "Cerca..." },
             pagination: {
               previous: 'Precedente',
               next: 'Successivo',
               loading: 'Caricamento...'
             }
           }
-        });
+        }).render(document.getElementById("table"));
 
-        grid.render(document.getElementById("table"));
+        function updateCertCounter() {
+          const rows = document.querySelectorAll(".gridjs-table tbody tr");
+          const visibleISINs = new Set();
 
-        const updateTable = () => {
-          setTimeout(() => {
-            const rows = document.querySelectorAll(".gridjs-table tbody tr");
-            const visibleISINs = new Set();
-            const trList = Array.from(rows);
-
-            let prev = null;
-            trList.forEach((tr, i) => {
+          rows.forEach(tr => {
+            if (tr.offsetParent !== null) {
               const isinCell = tr.querySelector("td:last-child a");
               const currISIN = isinCell?.textContent.trim();
-
               if (currISIN) visibleISINs.add(currISIN);
+            }
+          });
 
-              if (currISIN && currISIN !== prev) {
-                tr.classList.add("row-top-divider");
-                if (i > 0) trList[i - 1].classList.add("row-bottom-divider");
-                prev = currISIN;
-              }
+          let certCounter = document.querySelector(".cert-counter");
+          if (!certCounter) {
+            certCounter = document.createElement("div");
+            certCounter.className = "cert-counter";
+            const pagination = document.querySelector(".gridjs-pagination");
+            pagination?.parentNode.insertBefore(certCounter, pagination);
+          }
+          certCounter.innerHTML = `Certificati mostrati <strong>${visibleISINs.size}</strong> su <strong>${allISINs.size}</strong>`;
+        }
 
-              // Hover elegante blocco
-              const hoverEnter = () => {
-                trList.forEach(row => {
-                  const rowISIN = row.querySelector("td:last-child a")?.textContent.trim();
-                  if (rowISIN === currISIN) row.classList.add('hover-highlight');
-                });
-              };
-              const hoverLeave = () => {
-                trList.forEach(row => {
-                  const rowISIN = row.querySelector("td:last-child a")?.textContent.trim();
-                  if (rowISIN === currISIN) row.classList.remove('hover-highlight');
-                });
-              };
-              tr.addEventListener('mouseenter', hoverEnter);
-              tr.addEventListener('mouseleave', hoverLeave);
+        function updateRowStyles() {
+          const rows = document.querySelectorAll(".gridjs-table tbody tr");
+          let prevISIN = null;
+
+          rows.forEach((tr, i) => {
+            tr.classList.remove("row-top-divider", "row-bottom-divider");
+            const isinCell = tr.querySelector("td:last-child a");
+            const currISIN = isinCell?.textContent.trim();
+
+            if (currISIN && currISIN !== prevISIN) {
+              tr.classList.add("row-top-divider");
+              if (i > 0) rows[i - 1].classList.add("row-bottom-divider");
+              prevISIN = currISIN;
+            }
+
+            tr.addEventListener('mouseenter', () => {
+              rows.forEach(r => {
+                const rIsin = r.querySelector("td:last-child a")?.textContent.trim();
+                if (rIsin === currISIN) {
+                  r.style.backgroundColor = "#f8f9fa";
+                }
+              });
             });
 
-            // Nascondi "Showing x to y"
+            tr.addEventListener('mouseleave', () => {
+              rows.forEach(r => {
+                r.style.backgroundColor = "";
+              });
+            });
+          });
+        }
+
+        grid.on('ready', () => {
+          const observer = new MutationObserver(() => {
             const summary = document.querySelector(".gridjs-summary");
-            if (summary) summary.style.display = 'none';
+            if (summary) summary.style.display = "none";
 
-            // Aggiorna contatore
-            let certCounter = document.querySelector(".cert-counter");
-            if (!certCounter) {
-              const pagination = document.querySelector(".gridjs-pagination");
-              certCounter = document.createElement("div");
-              certCounter.className = "cert-counter";
-              pagination.parentNode.insertBefore(certCounter, pagination);
+            updateCertCounter();
+            updateRowStyles();
+          });
+
+          observer.observe(document.querySelector("#table"), { childList: true, subtree: true });
+        });
+
+        document.addEventListener("keyup", (e) => {
+          if (e.target.matches(".gridjs-search-input")) {
+            setTimeout(() => {
+              blockFilterOnISIN();
+              updateCertCounter();
+            }, 100);
+          }
+        });
+
+        document.addEventListener("click", (e) => {
+          if (e.target.closest(".gridjs-pagination")) {
+            setTimeout(() => {
+              blockFilterOnISIN();
+              updateCertCounter();
+            }, 100);
+          }
+        });
+
+        function blockFilterOnISIN() {
+          const rows = document.querySelectorAll(".gridjs-table tbody tr");
+          const visibleISINs = new Set();
+
+          rows.forEach(tr => {
+            if (tr.offsetParent !== null) {
+              const isinCell = tr.querySelector("td:last-child a");
+              const currISIN = isinCell?.textContent.trim();
+              if (currISIN) visibleISINs.add(currISIN);
             }
-            certCounter.innerHTML = `Certificati mostrati <strong>${visibleISINs.size}</strong> su <strong>${allISINs.size}</strong>`;
-          }, 300);
-        };
+          });
 
-        grid.on('ready', updateTable);
-        grid.on('search', updateTable);
-        grid.on('paginationChanged', updateTable);
+          rows.forEach(tr => {
+            const isinCell = tr.querySelector("td:last-child a");
+            const currISIN = isinCell?.textContent.trim();
+            if (currISIN && !visibleISINs.has(currISIN)) {
+              tr.style.display = "none";
+            } else {
+              tr.style.display = "";
+            }
+          });
+
+          updateRowStyles();
+        }
       });
   </script>
 </body>
 </html>
-
