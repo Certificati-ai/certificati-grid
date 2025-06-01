@@ -65,10 +65,8 @@
     /* Hover elegante su tutte le righe con stesso ISIN */
     .hover-highlight {
       background-color: #f2f7ff !important;
-      box-shadow: inset 3px 0 0 #3399ff;
     }
 
-    /* Divisori certificato */
     .row-top-divider td {
       border-top: 2px solid #999 !important;
     }
@@ -206,17 +204,13 @@
 
         grid.render(document.getElementById("table"));
 
-        const updateCounterAndHighlight = () => {
+        const updateTable = () => {
           setTimeout(() => {
             const rows = document.querySelectorAll(".gridjs-table tbody tr");
             const visibleISINs = new Set();
+            const trList = Array.from(rows);
+
             let prev = null;
-            let trList = Array.from(rows);
-
-            // Reset hover handlers
-            trList.forEach(tr => tr.removeEventListener('mouseenter', tr._hoverEnter));
-            trList.forEach(tr => tr.removeEventListener('mouseleave', tr._hoverLeave));
-
             trList.forEach((tr, i) => {
               const isinCell = tr.querySelector("td:last-child a");
               const currISIN = isinCell?.textContent.trim();
@@ -225,11 +219,11 @@
 
               if (currISIN && currISIN !== prev) {
                 tr.classList.add("row-top-divider");
-                if (i > 0) rows[i - 1].classList.add("row-bottom-divider");
+                if (i > 0) trList[i - 1].classList.add("row-bottom-divider");
                 prev = currISIN;
               }
 
-              // Hover elegante
+              // Hover elegante blocco
               const hoverEnter = () => {
                 trList.forEach(row => {
                   const rowISIN = row.querySelector("td:last-child a")?.textContent.trim();
@@ -242,18 +236,15 @@
                   if (rowISIN === currISIN) row.classList.remove('hover-highlight');
                 });
               };
-
               tr.addEventListener('mouseenter', hoverEnter);
               tr.addEventListener('mouseleave', hoverLeave);
-              tr._hoverEnter = hoverEnter;
-              tr._hoverLeave = hoverLeave;
             });
 
-            // Rimuove il messaggio predefinito
+            // Nascondi "Showing x to y"
             const summary = document.querySelector(".gridjs-summary");
-            if (summary) summary.remove();
+            if (summary) summary.style.display = 'none';
 
-            // Aggiorna il contatore
+            // Aggiorna contatore
             let certCounter = document.querySelector(".cert-counter");
             if (!certCounter) {
               const pagination = document.querySelector(".gridjs-pagination");
@@ -265,9 +256,9 @@
           }, 300);
         };
 
-        grid.on('ready', updateCounterAndHighlight);
-        grid.on('search', updateCounterAndHighlight);
-        grid.on('paginationChanged', updateCounterAndHighlight);
+        grid.on('ready', updateTable);
+        grid.on('search', updateTable);
+        grid.on('paginationChanged', updateTable);
       });
   </script>
 </body>
