@@ -132,7 +132,7 @@
       display: none !important;
     }
 
-    /* Hover elegante tutte righe stesso ISIN */
+    /* Hover elegante su tutte le righe con stesso ISIN */
     tr.hovered {
       background-color: #f8f9fa !important;
     }
@@ -316,8 +316,10 @@
         }
 
         grid.on('ready', () => {
-          updateCertCounter();
-          updateRowStyles();
+          setTimeout(() => {
+            updateCertCounter();
+            updateRowStyles();
+          }, 100);
         });
 
         document.addEventListener("keyup", (e) => {
@@ -341,3 +343,4 @@
   </script>
 </body>
 </html>
+
