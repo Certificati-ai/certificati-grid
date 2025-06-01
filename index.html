@@ -39,6 +39,7 @@
       white-space: normal;
     }
 
+    /* Numeri allineati a destra */
     .gridjs-table td:nth-child(1),
     .gridjs-table td:nth-child(6),
     .gridjs-table td:nth-child(7),
@@ -51,6 +52,7 @@
       text-align: right;
     }
 
+    /* Testi allineati a sinistra */
     .gridjs-table td:nth-child(2),
     .gridjs-table td:nth-child(3),
     .gridjs-table td:nth-child(9),
@@ -60,30 +62,18 @@
       text-align: left;
     }
 
-    /* Hover elegante su blocco ISIN */
-    .hovered {
-      background-color: #f0f4f8;
-      border-left: 3px solid #3399ff;
+    /* Hover elegante su tutte le righe con stesso ISIN */
+    .hover-highlight {
+      background-color: #f2f7ff !important;
+      box-shadow: inset 3px 0 0 #3399ff;
     }
 
+    /* Divisori certificato */
     .row-top-divider td {
       border-top: 2px solid #999 !important;
     }
-
     .row-bottom-divider td {
       border-bottom: 2px solid #999 !important;
-    }
-
-    .cert-counter {
-      font-size: 10px;
-      padding-left: 8px;
-      color: #6c757d;
-      margin-top: 10px;
-    }
-
-    .cert-counter strong {
-      color: #212529;
-      font-weight: 600;
     }
 
     .positive {
@@ -105,6 +95,16 @@
     .isin-link:hover {
       text-decoration: underline;
     }
+
+    .cert-counter {
+      font-size: 10px;
+      padding-left: 8px;
+      color: #6c757d;
+    }
+    .cert-counter strong {
+      color: #212529;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -119,15 +119,6 @@
       .then(csv => {
         const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
         const raw = parsed.data.filter(row => Object.values(row)[1]?.trim() !== "----------");
-
-        // Ripulisco numeri da apostrofo
-        for (const row of raw) {
-          for (const key in row) {
-            if (typeof row[key] === "string" && row[key].match(/^\d{1,3}'\d{3}/)) {
-              row[key] = row[key].replace(/'/g, "");
-            }
-          }
-        }
 
         const allISINs = new Set();
         const headers = Object.keys(raw[0]).filter(h =>
@@ -144,8 +135,30 @@
           const currISIN = row["ISIN"];
           if (currISIN) allISINs.add(currISIN);
 
+          if ((row["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
+            row["Valuta"] = `${row["Valuta"]}<div>Quanto</div>`;
+          }
+
+          if (row["Osservazione"] && row["Prossima Osservazione"]) {
+            row["Prossima Osservazione"] = `${row["Prossima Osservazione"]}<div>${row["Osservazione"]}</div>`;
+          }
+
+          if (row["Tipologia di barriera"]?.toLowerCase().includes("solo a scadenza")) {
+            row["Barriera capitale"] = `${row["Barriera capitale"]}<div>Europea</div>`;
+          }
+
+          const mem = row["Effetto memoria"];
+          if (mem?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() === "si") {
+            row["Barriera cedolare"] = `${row["Barriera cedolare"]}<div>Si Memory</div>`;
+          }
+
           const formattedRow = headers.map(h => {
-            const val = row[h] || "";
+            let val = row[h] || "";
+
+            // Rimuove ' dai numeri
+            if (typeof val === "string" && val.match(/^\d{1,3}'\d{3}/)) {
+              val = val.replace(/'/g, '');
+            }
 
             if (h.toLowerCase() === "performance") {
               const num = parseFloat(val.replace('%', '').replace(',', '.'));
@@ -157,9 +170,10 @@
 
             if (h === "ISIN" && val.startsWith("CH")) {
               const link = row["Link"]?.trim();
-              return gridjs.html(`<a class="isin-link" href="${link}" target="_blank">\${val}</a>`);
+              return gridjs.html(`<a class="isin-link" href="${link}" target="_blank">${val}</a>`);
             }
 
+            if (val.includes("<div>")) return gridjs.html(val);
             return val;
           });
 
@@ -171,77 +185,89 @@
           data: data.map(d => d.row),
           search: {
             enabled: true,
-            keyword: '',
             placeholder: "Cerca..."
           },
           sort: true,
-          pagination: false,
+          pagination: {
+            enabled: true,
+            limit: 30
+          },
           language: {
             search: {
               placeholder: "Cerca..."
             },
-            loading: 'Caricamento...'
+            pagination: {
+              previous: 'Precedente',
+              next: 'Successivo',
+              loading: 'Caricamento...'
+            }
           }
         });
 
         grid.render(document.getElementById("table"));
 
-        const updateCounterAndHover = () => {
-          const rows = document.querySelectorAll(".gridjs-table tbody tr");
-          const visibleISINs = new Set();
-          let prev = null;
+        const updateCounterAndHighlight = () => {
+          setTimeout(() => {
+            const rows = document.querySelectorAll(".gridjs-table tbody tr");
+            const visibleISINs = new Set();
+            let prev = null;
+            let trList = Array.from(rows);
 
-          rows.forEach((tr, i) => {
-            tr.classList.remove("hovered");
-            const isinCell = tr.querySelector("td:last-child a");
-            const currISIN = isinCell?.textContent.trim();
+            // Reset hover handlers
+            trList.forEach(tr => tr.removeEventListener('mouseenter', tr._hoverEnter));
+            trList.forEach(tr => tr.removeEventListener('mouseleave', tr._hoverLeave));
 
-            if (currISIN) visibleISINs.add(currISIN);
+            trList.forEach((tr, i) => {
+              const isinCell = tr.querySelector("td:last-child a");
+              const currISIN = isinCell?.textContent.trim();
 
-            if (currISIN && currISIN !== prev) {
-              tr.classList.add("row-top-divider");
-              if (i > 0) rows[i - 1].classList.add("row-bottom-divider");
-              prev = currISIN;
+              if (currISIN) visibleISINs.add(currISIN);
+
+              if (currISIN && currISIN !== prev) {
+                tr.classList.add("row-top-divider");
+                if (i > 0) rows[i - 1].classList.add("row-bottom-divider");
+                prev = currISIN;
+              }
+
+              // Hover elegante
+              const hoverEnter = () => {
+                trList.forEach(row => {
+                  const rowISIN = row.querySelector("td:last-child a")?.textContent.trim();
+                  if (rowISIN === currISIN) row.classList.add('hover-highlight');
+                });
+              };
+              const hoverLeave = () => {
+                trList.forEach(row => {
+                  const rowISIN = row.querySelector("td:last-child a")?.textContent.trim();
+                  if (rowISIN === currISIN) row.classList.remove('hover-highlight');
+                });
+              };
+
+              tr.addEventListener('mouseenter', hoverEnter);
+              tr.addEventListener('mouseleave', hoverLeave);
+              tr._hoverEnter = hoverEnter;
+              tr._hoverLeave = hoverLeave;
+            });
+
+            // Rimuove il messaggio predefinito
+            const summary = document.querySelector(".gridjs-summary");
+            if (summary) summary.remove();
+
+            // Aggiorna il contatore
+            let certCounter = document.querySelector(".cert-counter");
+            if (!certCounter) {
+              const pagination = document.querySelector(".gridjs-pagination");
+              certCounter = document.createElement("div");
+              certCounter.className = "cert-counter";
+              pagination.parentNode.insertBefore(certCounter, pagination);
             }
-
-            // Hover elegante su gruppo
-            tr.addEventListener("mouseenter", () => {
-              rows.forEach(r => {
-                if (r.querySelector("td:last-child a")?.textContent.trim() === currISIN) {
-                  r.classList.add("hovered");
-                }
-              });
-            });
-
-            tr.addEventListener("mouseleave", () => {
-              rows.forEach(r => r.classList.remove("hovered"));
-            });
-          });
-
-          const oldCounter = document.querySelector(".cert-counter");
-          if (oldCounter) oldCounter.remove();
-
-          const pagination = document.querySelector(".gridjs-wrapper");
-          if (pagination) {
-            const countDiv = document.createElement("div");
-            countDiv.className = "cert-counter";
-            countDiv.innerHTML = `Certificati mostrati <strong>\${visibleISINs.size}</strong> su <strong>\${allISINs.size}</strong>`;
-            pagination.parentNode.insertBefore(countDiv, pagination);
-          }
-
-          // Rimuove il messaggio "Showing x to y of z"
-          const summaries = document.querySelectorAll(".gridjs-summary");
-          summaries.forEach(s => s.remove());
+            certCounter.innerHTML = `Certificati mostrati <strong>${visibleISINs.size}</strong> su <strong>${allISINs.size}</strong>`;
+          }, 300);
         };
 
-        setTimeout(updateCounterAndHover, 800);
-
-        // Update dinamico dopo ricerca
-        document.addEventListener("input", (e) => {
-          if (e.target.closest("input[type='search']")) {
-            setTimeout(updateCounterAndHover, 500);
-          }
-        });
+        grid.on('ready', updateCounterAndHighlight);
+        grid.on('search', updateCounterAndHighlight);
+        grid.on('paginationChanged', updateCounterAndHighlight);
       });
   </script>
 </body>
