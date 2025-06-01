@@ -1,17 +1,16 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tabella Certificati Finanziari</title>
   <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
-  <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
+  <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       font-size: 10px;
-      padding: 0.5rem;
       background: #fff;
       overflow-x: hidden;
     }
@@ -19,12 +18,11 @@
     h1 {
       text-align: center;
       font-size: 1.2rem;
+      margin-bottom: 10px;
     }
 
     .gridjs-container {
       font-size: 10px;
-      max-width: 100%;
-      overflow-x: auto;
     }
 
     .gridjs-table {
@@ -39,7 +37,7 @@
       white-space: normal;
     }
 
-    /* Numeri allineati a destra */
+    /* Allineamento numeri */
     .gridjs-table td:nth-child(1),
     .gridjs-table td:nth-child(6),
     .gridjs-table td:nth-child(7),
@@ -52,7 +50,7 @@
       text-align: right;
     }
 
-    /* Testi allineati a sinistra */
+    /* Allineamento testi */
     .gridjs-table td:nth-child(2),
     .gridjs-table td:nth-child(3),
     .gridjs-table td:nth-child(9),
@@ -62,49 +60,8 @@
       text-align: left;
     }
 
-    /* Hover sulle righe */
-    .gridjs-table tbody tr:hover {
-      background-color: #f8f9fa;
-    }
-
-    /* Colonne con larghezza */
-    .gridjs-table th:nth-child(1),
-    .gridjs-table th:nth-child(6),
-    .gridjs-table th:nth-child(7),
-    .gridjs-table th:nth-child(8),
-    .gridjs-table th:nth-child(11),
-    .gridjs-table th:nth-child(12),
-    .gridjs-table th:nth-child(13),
-    .gridjs-table th:nth-child(14),
-    .gridjs-table th:nth-child(16),
-    .gridjs-table th:nth-child(17),
-    .gridjs-table th:nth-child(18) {
-      width: 80px;
-    }
-
-    .gridjs-table th:nth-child(2) { /* Tipologia */
-      width: 150px;
-    }
-
-    .gridjs-table th:nth-child(3) { /* Sottostante */
-      width: 250px;
-    }
-
-    .gridjs-table th:nth-child(9) { /* Meccanismo di richiamo / protezione */
-      width: 120px;
-      white-space: normal;
-      word-break: break-word;
-    }
-
-    .positive {
-      color: green;
-      font-weight: bold;
-    }
-
-    .negative {
-      color: red;
-      font-weight: bold;
-    }
+    .positive { color: green; font-weight: bold; }
+    .negative { color: red; font-weight: bold; }
 
     .isin-link {
       color: #003366;
@@ -116,23 +73,30 @@
       text-decoration: underline;
     }
 
-    .row-top-divider td {
-      border-top: 2px solid #999 !important;
+    /* Hover gruppo certificato */
+    .cert-row:hover {
+      background-color: #f1f1f1;
     }
 
-    .row-bottom-divider td {
-      border-bottom: 2px solid #999 !important;
+    /* Divider sopra ogni certificato */
+    .row-divider td {
+      border-top: 2px solid #999 !important;
     }
 
     .cert-counter {
       font-size: 10px;
-      padding-left: 8px;
+      padding: 8px;
       color: #6c757d;
     }
 
     .cert-counter strong {
       color: #212529;
       font-weight: 600;
+    }
+
+    /* Nascondi la summary di default */
+    .gridjs-summary {
+      display: none;
     }
   </style>
 </head>
@@ -149,7 +113,7 @@
         const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
         const raw = parsed.data.filter(row => Object.values(row)[1]?.trim() !== "----------");
 
-        const allISINs = new Set();
+        const allCerts = new Map();
         const headers = Object.keys(raw[0]).filter(h =>
           h !== "Effetto memoria" &&
           h !== "Tipologia di barriera" &&
@@ -158,55 +122,69 @@
           h !== "Link"
         );
 
-        const data = [];
+        raw.forEach(row => {
+          const isin = row["ISIN"];
+          if (!allCerts.has(isin)) allCerts.set(isin, []);
+          allCerts.get(isin).push(row);
+        });
 
-        for (const row of raw) {
-          const currISIN = row["ISIN"];
-          if (currISIN) allISINs.add(currISIN);
+        function buildData(data) {
+          return data.flatMap(certRows => {
+            return certRows.map((row, idx) => {
+              const formattedRow = headers.map(h => {
+                let val = row[h] || "";
 
-          if ((row["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
-            row["Valuta"] = `${row["Valuta"]}<div>Quanto</div>`;
-          }
+                if (h === "Fixing") {
+                  val = val.replaceAll("'", "");
+                }
 
-          if (row["Osservazione"] && row["Prossima Osservazione"]) {
-            row["Prossima Osservazione"] = `${row["Prossima Osservazione"]}<div>${row["Osservazione"]}</div>`;
-          }
+                if (h === "Performance") {
+                  const num = parseFloat(val.replace('%', '').replace(',', '.'));
+                  if (!isNaN(num)) {
+                    const cls = num >= 0 ? 'positive' : 'negative';
+                    return gridjs.html(`<span class="${cls}">${val}</span>`);
+                  }
+                }
 
-          if (row["Tipologia di barriera"]?.toLowerCase().includes("solo a scadenza")) {
-            row["Barriera capitale"] = `${row["Barriera capitale"]}<div>Europea</div>`;
-          }
+                if (h === "ISIN" && val.startsWith("CH")) {
+                  const link = row["Link"]?.trim();
+                  return gridjs.html(`<a class="isin-link" href="${link}" target="_blank">${val}</a>`);
+                }
 
-          const mem = row["Effetto memoria"];
-          if (mem?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() === "si") {
-            row["Barriera cedolare"] = `${row["Barriera cedolare"]}<div>Si Memory</div>`;
-          }
+                if ((row["Quanto (protezione cambio)"] || "").toLowerCase().trim() === "sì" && h === "Valuta") {
+                  val += "<div>Quanto</div>";
+                }
 
-          const formattedRow = headers.map(h => {
-            const val = row[h] || "";
+                if (row["Tipologia di barriera"]?.toLowerCase().includes("solo a scadenza") && h === "Barriera capitale") {
+                  val += "<div>Europea</div>";
+                }
 
-            if (h.toLowerCase() === "performance") {
-              const num = parseFloat(val.replace('%', '').replace(',', '.'));
-              if (!isNaN(num)) {
-                const cls = num >= 0 ? 'positive' : 'negative';
-                return gridjs.html(`<span class="${cls}">${val}</span>`);
-              }
-            }
+                if (row["Effetto memoria"]?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() === "si" && h === "Barriera cedolare") {
+                  val += "<div>Si Memory</div>";
+                }
 
-            if (h === "ISIN" && val.startsWith("CH")) {
-              const link = row["Link"]?.trim();
-              return gridjs.html(`<a class="isin-link" href="${link}" target="_blank">${val}</a>`);
-            }
+                if (row["Osservazione"] && row["Prossima Osservazione"] && h === "Prossima Osservazione") {
+                  val += `<div>${row["Osservazione"]}</div>`;
+                }
 
-            if (val.includes("<div>")) return gridjs.html(val);
-            return val;
+                if (val.includes("<div>")) return gridjs.html(val);
+                return val;
+              });
+
+              return {
+                row: formattedRow,
+                isin: row["ISIN"],
+                isFirst: idx === 0
+              };
+            });
           });
-
-          data.push({ row: formattedRow, isin: currISIN });
         }
+
+        let currentData = buildData([...allCerts.values()]);
 
         const grid = new gridjs.Grid({
           columns: headers,
-          data: data.map(d => d.row),
+          data: currentData.map(d => d.row),
           search: {
             enabled: true,
             placeholder: "Cerca..."
@@ -217,50 +195,61 @@
             limit: 30
           },
           language: {
-            search: {
-              placeholder: "Cerca..."
-            },
             pagination: {
               previous: 'Precedente',
-              next: 'Successivo',
-              loading: 'Caricamento...'
+              next: 'Successivo'
             }
           }
         });
 
         grid.render(document.getElementById("table"));
 
-        setTimeout(() => {
+        function updateRows() {
           const rows = document.querySelectorAll(".gridjs-table tbody tr");
-          const visibleISINs = new Set();
-          let prev = null;
+          rows.forEach((row, idx) => {
+            row.classList.remove("row-divider", "cert-row");
+            row.classList.add("cert-row");
+            const cert = currentData[idx];
+            if (cert?.isFirst) row.classList.add("row-divider");
+          });
+        }
 
-          rows.forEach((tr, i) => {
-            const isinCell = tr.querySelector("td:last-child a");
-            const currISIN = isinCell?.textContent.trim();
-
-            if (currISIN) visibleISINs.add(currISIN);
-
-            if (currISIN && currISIN !== prev) {
-              tr.classList.add("row-top-divider");
-              if (i > 0) rows[i - 1].classList.add("row-bottom-divider");
-              prev = currISIN;
-            }
+        function updateCounter() {
+          const rows = document.querySelectorAll(".gridjs-table tbody tr");
+          const isins = new Set();
+          rows.forEach(row => {
+            const link = row.querySelector("td:last-child a");
+            if (link) isins.add(link.textContent.trim());
           });
 
-          // Rimuove il messaggio predefinito
-          const summary = document.querySelector(".gridjs-summary");
-          if (summary) summary.remove();
-
-          // Inserisce il messaggio personalizzato
-          const pagination = document.querySelector(".gridjs-pagination");
-          if (pagination) {
-            const countDiv = document.createElement("div");
-            countDiv.className = "cert-counter";
-            countDiv.innerHTML = `Certificati mostrati <strong>${visibleISINs.size}</strong> su <strong>${allISINs.size}</strong>`;
-            pagination.parentNode.insertBefore(countDiv, pagination);
+          let counterDiv = document.querySelector(".cert-counter");
+          if (!counterDiv) {
+            counterDiv = document.createElement("div");
+            counterDiv.className = "cert-counter";
+            document.querySelector(".gridjs-pagination").insertAdjacentElement('beforebegin', counterDiv);
           }
-        }, 800);
+          counterDiv.innerHTML = `Certificati mostrati <strong>${isins.size}</strong> su <strong>${allCerts.size}</strong>`;
+        }
+
+        grid.on('ready', () => {
+          updateRows();
+          updateCounter();
+        });
+
+        grid.on('search', ({ keyword }) => {
+          const filtered = [...allCerts.values()].filter(rows =>
+            rows.some(row => Object.values(row).some(v => (v || '').toString().toLowerCase().includes(keyword.toLowerCase())))
+          );
+          currentData = buildData(filtered);
+          grid.updateConfig({ data: currentData.map(d => d.row) }).forceRender();
+        });
+
+        grid.on('pagination', () => {
+          setTimeout(() => {
+            updateRows();
+            updateCounter();
+          }, 100);
+        });
       });
   </script>
 </body>
