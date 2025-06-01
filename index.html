@@ -126,6 +126,16 @@
       color: #212529;
       font-weight: 600;
     }
+
+    /* Nasconde SEMPRE il messaggio Grid.js */
+    .gridjs-summary {
+      display: none !important;
+    }
+
+    /* Hover elegante tutte righe stesso ISIN */
+    tr.hovered {
+      background-color: #f8f9fa !important;
+    }
   </style>
 </head>
 <body>
@@ -267,48 +277,18 @@
               rows.forEach(r => {
                 const rIsin = r.querySelector("td:last-child a")?.textContent.trim();
                 if (rIsin === currISIN) {
-                  r.style.backgroundColor = "#f8f9fa";
+                  r.classList.add('hovered');
                 }
               });
             });
 
             tr.addEventListener('mouseleave', () => {
               rows.forEach(r => {
-                r.style.backgroundColor = "";
+                r.classList.remove('hovered');
               });
             });
           });
         }
-
-        grid.on('ready', () => {
-          const observer = new MutationObserver(() => {
-            const summary = document.querySelector(".gridjs-summary");
-            if (summary) summary.style.display = "none";
-
-            updateCertCounter();
-            updateRowStyles();
-          });
-
-          observer.observe(document.querySelector("#table"), { childList: true, subtree: true });
-        });
-
-        document.addEventListener("keyup", (e) => {
-          if (e.target.matches(".gridjs-search-input")) {
-            setTimeout(() => {
-              blockFilterOnISIN();
-              updateCertCounter();
-            }, 100);
-          }
-        });
-
-        document.addEventListener("click", (e) => {
-          if (e.target.closest(".gridjs-pagination")) {
-            setTimeout(() => {
-              blockFilterOnISIN();
-              updateCertCounter();
-            }, 100);
-          }
-        });
 
         function blockFilterOnISIN() {
           const rows = document.querySelectorAll(".gridjs-table tbody tr");
@@ -334,6 +314,29 @@
 
           updateRowStyles();
         }
+
+        grid.on('ready', () => {
+          updateCertCounter();
+          updateRowStyles();
+        });
+
+        document.addEventListener("keyup", (e) => {
+          if (e.target.matches(".gridjs-search-input")) {
+            setTimeout(() => {
+              blockFilterOnISIN();
+              updateCertCounter();
+            }, 100);
+          }
+        });
+
+        document.addEventListener("click", (e) => {
+          if (e.target.closest(".gridjs-pagination")) {
+            setTimeout(() => {
+              blockFilterOnISIN();
+              updateCertCounter();
+            }, 100);
+          }
+        });
       });
   </script>
 </body>
