@@ -317,22 +317,17 @@
           updateRowStyles();
         }
 
-        // MutationObserver per nascondere "Showing 1 to 12 of 12 results"
+        // Nascondere "Showing 1 to 12 of 12 results"
         const observer = new MutationObserver(() => {
           document.querySelectorAll(".gridjs-summary").forEach(el => el.style.display = "none");
         });
         observer.observe(document.body, { childList: true, subtree: true });
 
         grid.on('ready', () => {
-          // Soluzione corretta: aspettiamo che i <tr> esistano prima di agire
-          const interval = setInterval(() => {
-            const tr = document.querySelector(".gridjs-table tbody tr");
-            if (tr) {
-              clearInterval(interval);
-              blockFilterOnISIN();
-              updateCertCounter();
-            }
-          }, 100);
+          setTimeout(() => {
+            blockFilterOnISIN();
+            updateCertCounter();
+          }, 800); // <-- Timeout di 800ms
         });
 
         document.addEventListener("keyup", (e) => {
