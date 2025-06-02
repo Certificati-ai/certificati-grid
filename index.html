@@ -92,6 +92,9 @@ fetch(csvUrl)
       }
     }).render(document.getElementById("table"));
 
+    // ------------------------------
+    // PRIMO PUNTO: Contatore dinamico
+    // ------------------------------
     function updateCertCounter() {
       const rows = document.querySelectorAll(".gridjs-table tbody tr");
       const visibleISINs = new Set();
@@ -114,15 +117,20 @@ fetch(csvUrl)
       certCounter.innerHTML = `Certificati mostrati <strong>${visibleISINs.size}</strong> su <strong>${allISINs.size}</strong>`;
     }
 
+    // ------------------------------
+    // SECONDO PUNTO: Hover su tutto ISIN
+    // ------------------------------
     function updateRowStyles() {
       const rows = document.querySelectorAll(".gridjs-table tbody tr");
       let prevISIN = null;
 
-      rows.forEach((tr, i) => {
+      rows.forEach(tr => {
         tr.classList.remove("row-top-divider", "row-bottom-divider");
-        tr.removeEventListener('mouseenter', handleMouseEnter);
-        tr.removeEventListener('mouseleave', handleMouseLeave);
+        tr.removeEventListener('mouseenter', tr._hoverIn);
+        tr.removeEventListener('mouseleave', tr._hoverOut);
+      });
 
+      rows.forEach((tr, i) => {
         const isinCell = tr.querySelector("td:last-child a");
         const currISIN = isinCell?.textContent.trim();
 
@@ -132,22 +140,36 @@ fetch(csvUrl)
           prevISIN = currISIN;
         }
 
-        function handleMouseEnter() {
+        tr._hoverIn = () => {
           rows.forEach(r => {
             const rIsin = r.querySelector("td:last-child a")?.textContent.trim();
             if (rIsin === currISIN) {
               r.classList.add('hovered');
             }
           });
-        }
+        };
 
-        function handleMouseLeave() {
-          rows.forEach(r => r.classList.remove('hovered'));
-        }
+        tr._hoverOut = () => {
+          rows.forEach(r => {
+            r.classList.remove('hovered');
+          });
+        };
 
-        tr.addEventListener('mouseenter', handleMouseEnter);
-        tr.addEventListener('mouseleave', handleMouseLeave);
+        tr.addEventListener('mouseenter', tr._hoverIn);
+        tr.addEventListener('mouseleave', tr._hoverOut);
       });
+    }
+
+    // ------------------------------
+    // TERZO PUNTO: Nascondere il messaggio Grid.js
+    // ------------------------------
+    function hideGridjsSummary() {
+      const observer = new MutationObserver(() => {
+        document.querySelectorAll(".gridjs-summary").forEach(el => {
+          el.style.display = "none";
+        });
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
     }
 
     function blockFilterOnISIN() {
@@ -175,21 +197,12 @@ fetch(csvUrl)
       updateRowStyles();
     }
 
-    // Nasconde il messaggio Grid.js con MutationObserver
-    function hideGridjsSummary() {
-      const observer = new MutationObserver(() => {
-        document.querySelectorAll(".gridjs-summary").forEach(el => el.style.display = "none");
-      });
-
-      observer.observe(document.body, { childList: true, subtree: true });
-    }
-
     grid.on('ready', () => {
       setTimeout(() => {
         updateCertCounter();
         updateRowStyles();
         hideGridjsSummary();
-      }, 500);
+      }, 800);
     });
 
     document.addEventListener("keyup", (e) => {
