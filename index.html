@@ -324,10 +324,15 @@
         observer.observe(document.body, { childList: true, subtree: true });
 
         grid.on('ready', () => {
-          setTimeout(() => {
-            blockFilterOnISIN();
-            updateCertCounter();
-          }, 800);
+          // Soluzione corretta: aspettiamo che i <tr> esistano prima di agire
+          const interval = setInterval(() => {
+            const tr = document.querySelector(".gridjs-table tbody tr");
+            if (tr) {
+              clearInterval(interval);
+              blockFilterOnISIN();
+              updateCertCounter();
+            }
+          }, 100);
         });
 
         document.addEventListener("keyup", (e) => {
@@ -351,3 +356,4 @@
   </script>
 </body>
 </html>
+
