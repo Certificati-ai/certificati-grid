@@ -127,12 +127,10 @@
       font-weight: 600;
     }
 
-    /* Nasconde SEMPRE il messaggio Grid.js */
     .gridjs-summary {
       display: none !important;
     }
 
-    /* Hover elegante tutte righe stesso ISIN */
     tr.hovered {
       background-color: #f8f9fa !important;
     }
@@ -213,7 +211,6 @@
 
           data.push({ row: formattedRow, isin: currISIN });
         }
-
         let grid = new gridjs.Grid({
           columns: headers,
           data: data.map(d => d.row),
@@ -236,7 +233,6 @@
           }
         }).render(document.getElementById("table"));
 
-        // FIX dinamico counter
         function updateCertCounter() {
           const rows = document.querySelectorAll(".gridjs-table tbody tr");
           const visibleISINs = new Set();
@@ -259,7 +255,6 @@
           certCounter.innerHTML = `Certificati mostrati <strong>${visibleISINs.size}</strong> su <strong>${allISINs.size}</strong>`;
         }
 
-        // FIX hover elegante su tutto ISIN
         function updateRowStyles() {
           const rows = document.querySelectorAll(".gridjs-table tbody tr");
           let prevISIN = null;
@@ -322,7 +317,7 @@
           updateRowStyles();
         }
 
-        // MutationObserver per eliminare 'Showing 1 to 12 of 12 results'
+        // MutationObserver per nascondere "Showing 1 to 12 of 12 results"
         const observer = new MutationObserver(() => {
           document.querySelectorAll(".gridjs-summary").forEach(el => el.style.display = "none");
         });
@@ -330,8 +325,8 @@
 
         grid.on('ready', () => {
           setTimeout(() => {
+            blockFilterOnISIN();
             updateCertCounter();
-            updateRowStyles();
           }, 800);
         });
 
