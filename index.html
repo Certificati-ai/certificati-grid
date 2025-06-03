@@ -21,12 +21,16 @@
     table.dataTable tbody tr.hovered {
       background-color: #f8f9fa !important;
     }
+    table.dataTable {
+      border-collapse: collapse !important;
+    }
     table.dataTable td, table.dataTable th {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       max-width: 150px;
       font-size: 10px;
+      background-color: white !important;
     }
     .row-top-divider td {
       border-top: 2px solid #999 !important;
@@ -56,19 +60,21 @@
       color: #212529;
       font-weight: 600;
     }
-    /* Nasconde il dropdown "Show entries" */
-    .dataTables_length {
+    .dataTables_length, .dataTables_info {
       display: none;
     }
-    /* Nasconde "Showing 1 to 12 of 12 entries" */
-    .dataTables_info {
-      display: none;
+    #custom-search {
+      margin-bottom: 10px;
+      font-size: 10px;
+      padding: 5px;
+      width: 250px;
     }
   </style>
 </head>
 <body>
 
 <h1>Tabella Certificati Finanziari</h1>
+<input type="text" id="custom-search" placeholder="Cerca...">
 <div class="cert-counter" id="cert-counter"></div>
 <table id="certTable" class="display" style="width:100%">
   <thead></thead>
@@ -166,17 +172,15 @@ fetch(csvUrl)
     table = $('#certTable').DataTable({
       data: allData,
       columns: headers.map(h => ({ title: h })),
-      ordering: true,
+      ordering: false,
       paging: true,
       pageLength: 30,
       searching: true,
       language: {
-        searchPlaceholder: "Cerca...",
         paginate: {
           previous: 'Precedente',
           next: 'Successivo'
-        },
-        search: ""
+        }
       },
       initComplete: function() {
         updateCounter();
@@ -197,15 +201,20 @@ fetch(csvUrl)
       $('#certTable tbody tr').removeClass('hovered');
     });
 
+    $('#custom-search').on('keyup', function() {
+      table.search(this.value).draw();
+      updateCounter();
+      addDividers();
+    });
+
     table.on('draw', function() {
       updateCounter();
       addDividers();
     });
 
-    // Custom filter to match entire ISIN group
     $.fn.dataTable.ext.search.push(
       function(settings, data, dataIndex) {
-        const searchTerm = $('input[type="search"]').val().toLowerCase();
+        const searchTerm = $('#custom-search').val().toLowerCase();
         if (!searchTerm) return true;
         const isin = $(table.row(dataIndex).node()).find('td:last-child a').text().toLowerCase();
         return isin.includes(searchTerm);
