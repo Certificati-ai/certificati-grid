@@ -30,63 +30,37 @@
     .gridjs-table {
       width: 100%;
       table-layout: auto;
+      border-collapse: collapse;
     }
 
     .gridjs-table th,
     .gridjs-table td {
       padding: 6px 8px;
-      word-break: break-word;
-      white-space: normal;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: middle;
+      font-size: 10px;
     }
 
-    .gridjs-table td:nth-child(1),
-    .gridjs-table td:nth-child(6),
-    .gridjs-table td:nth-child(7),
-    .gridjs-table td:nth-child(8),
-    .gridjs-table td:nth-child(11),
-    .gridjs-table td:nth-child(12),
-    .gridjs-table td:nth-child(13),
-    .gridjs-table td:nth-child(14),
-    .gridjs-table td:nth-child(16) {
-      text-align: right;
-    }
-
-    .gridjs-table td:nth-child(2),
-    .gridjs-table td:nth-child(3),
-    .gridjs-table td:nth-child(9),
-    .gridjs-table td:nth-child(10),
-    .gridjs-table td:nth-child(17),
-    .gridjs-table td:nth-child(18) {
-      text-align: left;
-    }
-
-    .gridjs-table th:nth-child(1),
-    .gridjs-table th:nth-child(6),
-    .gridjs-table th:nth-child(7),
-    .gridjs-table th:nth-child(8),
-    .gridjs-table th:nth-child(11),
-    .gridjs-table th:nth-child(12),
-    .gridjs-table th:nth-child(13),
-    .gridjs-table th:nth-child(14),
-    .gridjs-table th:nth-child(16),
-    .gridjs-table th:nth-child(17),
-    .gridjs-table th:nth-child(18) {
-      width: 80px;
-    }
-
-    .gridjs-table th:nth-child(2) {
-      width: 150px;
-    }
-
-    .gridjs-table th:nth-child(3) {
-      width: 250px;
-    }
-
-    .gridjs-table th:nth-child(9) {
-      width: 120px;
-      white-space: normal;
-      word-break: break-word;
-    }
+    .gridjs-table th:nth-child(1) { width: 60px; } /* Cedola */
+    .gridjs-table th:nth-child(2) { width: 150px; } /* Tipologia */
+    .gridjs-table th:nth-child(3) { width: 250px; } /* Sottostante */
+    .gridjs-table th:nth-child(4) { width: 80px; }  /* Fixing */
+    .gridjs-table th:nth-child(5) { width: 80px; }  /* Performance */
+    .gridjs-table th:nth-child(6) { width: 80px; }  /* Distanza barriera */
+    .gridjs-table th:nth-child(7) { width: 80px; }  /* Barriera cedolare */
+    .gridjs-table th:nth-child(8) { width: 80px; }  /* Barriera capitale */
+    .gridjs-table th:nth-child(9) { width: 180px; } /* Meccanismo di richiamo */
+    .gridjs-table th:nth-child(10) { width: 60px; } /* Valuta */
+    .gridjs-table th:nth-child(11) { width: 80px; } /* Prezzo bid */
+    .gridjs-table th:nth-child(12) { width: 80px; } /* Prezzo ask */
+    .gridjs-table th:nth-child(13) { width: 80px; } /* Spread bid-ask */
+    .gridjs-table th:nth-child(14) { width: 80px; } /* Scadenza */
+    .gridjs-table th:nth-child(15) { width: 100px; } /* Prossima osservazione */
+    .gridjs-table th:nth-child(16) { width: 60px; } /* Costi Entrata */
+    .gridjs-table th:nth-child(17) { width: 100px; } /* Emittente */
+    .gridjs-table th:nth-child(18) { width: 150px; } /* ISIN */
 
     .positive {
       color: green;
@@ -131,8 +105,7 @@
       display: none !important;
     }
 
-    /* Hover SOLO su singola riga */
-    .gridjs-table tbody tr:hover {
+    .hovered {
       background-color: #f8f9fa !important;
     }
   </style>
@@ -218,9 +191,7 @@
             limit: 30
           },
           language: {
-            search: {
-              placeholder: "Cerca..."
-            },
+            search: { placeholder: "Cerca..." },
             pagination: {
               previous: 'Precedente',
               next: 'Successivo',
@@ -237,6 +208,10 @@
             const visibleISINs = new Set();
             let prev = null;
 
+            rows.forEach(tr => {
+              tr.classList.remove('row-top-divider', 'row-bottom-divider', 'hovered');
+            });
+
             rows.forEach((tr, i) => {
               const isinCell = tr.querySelector("td:last-child a");
               const currISIN = isinCell?.textContent.trim();
@@ -248,17 +223,20 @@
                 if (i > 0) rows[i - 1].classList.add("row-bottom-divider");
                 prev = currISIN;
               }
-            });
 
-            // Inserisce o aggiorna il contatore
-            let countDiv = document.querySelector(".cert-counter");
-            if (!countDiv) {
-              countDiv = document.createElement("div");
-              countDiv.className = "cert-counter";
-              const pagination = document.querySelector(".gridjs-pagination");
-              if (pagination) pagination.parentNode.insertBefore(countDiv, pagination);
-            }
-            countDiv.innerHTML = `Certificati mostrati <strong>${visibleISINs.size}</strong> su <strong>${allISINs.size}</strong>`;
+              tr.addEventListener('mouseenter', () => {
+                rows.forEach(r => {
+                  const rIsin = r.querySelector("td:last-child a")?.textContent.trim();
+                  if (rIsin === currISIN) {
+                    r.classList.add('hovered');
+                  }
+                });
+              });
+
+              tr.addEventListener('mouseleave', () => {
+                rows.forEach(r => r.classList.remove('hovered'));
+              });
+            });
           }, 800);
         }
 
@@ -276,7 +254,6 @@
           }
         });
 
-        // Sempre nascondi il messaggio "Showing 1 to 12 of 12 results"
         const observer = new MutationObserver(() => {
           document.querySelectorAll(".gridjs-summary").forEach(el => el.remove());
         });
