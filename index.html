@@ -33,10 +33,10 @@
       font-weight: bold;
     }
     .dataTables_filter label::before {
-      content: ""; /* Tolgo "Search" */
+      content: ""; /* Elimina "Search" */
     }
     .dataTables_filter label > input {
-      margin-left: 0; /* Tolgo spazio lasciato da "Search" */
+      margin-left: 0;
     }
     .dataTables_filter input {
       font-size: 10px;
@@ -103,9 +103,9 @@
 <script>
 const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQWK_CUJUV8yI0jG51rgpz7DMcVTuLt_HqjyTLPdPDkTyIxWBn8G6yozBtVU3bVymtwOCeZPCKmNAsW/pub?output=csv";
 
-let allData = [];
 let table;
 let blockCounter = 0;
+const allData = [];
 
 function updateCounter() {
   const visibleBlocks = new Set();
@@ -117,16 +117,6 @@ function updateCounter() {
   });
   const total = new Set(allData.map(d => d.blockId)).size;
   document.getElementById("cert-counter").innerHTML = `Certificati mostrati <strong>${visibleBlocks.size}</strong> su <strong>${total}</strong>`;
-}
-
-function addDividers() {
-  const rows = $('#certTable tbody tr');
-  rows.each(function() {
-    const hasISIN = $(this).find('td:last-child a').length > 0;
-    if (hasISIN) {
-      $(this).addClass('row-top-divider');
-    }
-  });
 }
 
 fetch(csvUrl)
@@ -187,9 +177,9 @@ fetch(csvUrl)
         return val;
       });
 
-      // Blocchi: ogni ISIN incrementa il blocco
-      const hasISIN = row["ISIN"]?.startsWith("CH");
-      if (hasISIN) blockCounter++;
+      if (row["ISIN"]?.startsWith("CH")) {
+        blockCounter++;
+      }
       allData.push({ data: formattedRow, blockId: blockCounter });
     });
 
@@ -209,11 +199,14 @@ fetch(csvUrl)
         }
       },
       createdRow: function(row, data, dataIndex) {
-        $(row).attr('data-block-id', allData[dataIndex].blockId);
+        const blockId = allData[dataIndex].blockId;
+        $(row).attr('data-block-id', blockId);
+        if (data[headers.indexOf('ISIN')].includes('isin-link')) {
+          $(row).addClass('row-top-divider');
+        }
       },
       initComplete: function() {
         updateCounter();
-        addDividers();
       }
     });
 
@@ -233,7 +226,6 @@ fetch(csvUrl)
 
     table.on('draw', function() {
       updateCounter();
-      addDividers();
     });
 
     // Ricerca ISIN
@@ -241,7 +233,7 @@ fetch(csvUrl)
       function(settings, data, dataIndex) {
         const searchTerm = $('.dataTables_filter input').val().toLowerCase();
         if (!searchTerm) return true;
-        const isinLink = $(table.row(dataIndex).node()).find('td:last-child a');
+        const isinLink = $(table.row(dataIndex).node()).find('td').eq(headers.indexOf('ISIN')).find('a');
         if (isinLink.length) {
           const isin = isinLink.text().toLowerCase();
           return isin.includes(searchTerm);
