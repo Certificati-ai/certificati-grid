@@ -29,12 +29,18 @@
       margin-bottom: 10px;
     }
     .dataTables_filter label {
-      display: none; /* Nasconde la label "Search" */
+      font-size: 10px;
+      font-weight: bold;
+    }
+    .dataTables_filter label::before {
+      content: ""; /* Tolgo "Search" */
+    }
+    .dataTables_filter label > input {
+      margin-left: 0; /* Tolgo spazio lasciato da "Search" */
     }
     .dataTables_filter input {
       font-size: 10px;
       padding: 5px;
-      margin-left: 5px;
     }
     table.dataTable {
       border-collapse: collapse !important;
@@ -51,7 +57,7 @@
       background-color: #f8f9fa !important;
     }
     .row-top-divider td {
-      border-top: 2px solid #999 !important;
+      border-top: 3px solid #333 !important;
     }
     .positive {
       color: green;
@@ -181,7 +187,7 @@ fetch(csvUrl)
         return val;
       });
 
-      // Blocchi
+      // Blocchi: ogni ISIN incrementa il blocco
       const hasISIN = row["ISIN"]?.startsWith("CH");
       if (hasISIN) blockCounter++;
       allData.push({ data: formattedRow, blockId: blockCounter });
@@ -195,8 +201,8 @@ fetch(csvUrl)
       pageLength: 30,
       searching: true,
       language: {
+        search: "",
         searchPlaceholder: "Cerca...",
-        search: "", // <-- Togli il testo "Search"
         paginate: {
           previous: 'Precedente',
           next: 'Successivo'
