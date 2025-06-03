@@ -60,11 +60,6 @@
       text-align: left;
     }
 
-    /* Hover su singola riga */
-    .gridjs-table tbody tr:hover {
-      background-color: #f8f9fa;
-    }
-
     .gridjs-table th:nth-child(1),
     .gridjs-table th:nth-child(6),
     .gridjs-table th:nth-child(7),
@@ -131,11 +126,21 @@
       color: #212529;
       font-weight: 600;
     }
+
+    .gridjs-summary {
+      display: none !important;
+    }
+
+    /* Hover SOLO su singola riga */
+    .gridjs-table tbody tr:hover {
+      background-color: #f8f9fa !important;
+    }
   </style>
 </head>
 <body>
   <h1>Tabella Certificati Finanziari</h1>
   <div id="table"></div>
+
   <script>
     const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQWK_CUJUV8yI0jG51rgpz7DMcVTuLt_HqjyTLPdPDkTyIxWBn8G6yozBtVU3bVymtwOCeZPCKmNAsW/pub?output=csv";
 
@@ -199,6 +204,7 @@
 
           data.push({ row: formattedRow, isin: currISIN });
         }
+
         const grid = new gridjs.Grid({
           columns: headers,
           data: data.map(d => d.row),
@@ -225,37 +231,56 @@
 
         grid.render(document.getElementById("table"));
 
-        setTimeout(() => {
-          const rows = document.querySelectorAll(".gridjs-table tbody tr");
-          const visibleISINs = new Set();
-          let prev = null;
+        function aggiornaTabella() {
+          setTimeout(() => {
+            const rows = document.querySelectorAll(".gridjs-table tbody tr");
+            const visibleISINs = new Set();
+            let prev = null;
 
-          rows.forEach((tr, i) => {
-            const isinCell = tr.querySelector("td:last-child a");
-            const currISIN = isinCell?.textContent.trim();
+            rows.forEach((tr, i) => {
+              const isinCell = tr.querySelector("td:last-child a");
+              const currISIN = isinCell?.textContent.trim();
 
-            if (currISIN) visibleISINs.add(currISIN);
+              if (currISIN) visibleISINs.add(currISIN);
 
-            if (currISIN && currISIN !== prev) {
-              tr.classList.add("row-top-divider");
-              if (i > 0) rows[i - 1].classList.add("row-bottom-divider");
-              prev = currISIN;
+              if (currISIN && currISIN !== prev) {
+                tr.classList.add("row-top-divider");
+                if (i > 0) rows[i - 1].classList.add("row-bottom-divider");
+                prev = currISIN;
+              }
+            });
+
+            // Inserisce o aggiorna il contatore
+            let countDiv = document.querySelector(".cert-counter");
+            if (!countDiv) {
+              countDiv = document.createElement("div");
+              countDiv.className = "cert-counter";
+              const pagination = document.querySelector(".gridjs-pagination");
+              if (pagination) pagination.parentNode.insertBefore(countDiv, pagination);
             }
-          });
-
-          // Rimuove il messaggio predefinito
-          const summary = document.querySelector(".gridjs-summary");
-          if (summary) summary.remove();
-
-          // Inserisce il messaggio personalizzato
-          const pagination = document.querySelector(".gridjs-pagination");
-          if (pagination) {
-            const countDiv = document.createElement("div");
-            countDiv.className = "cert-counter";
             countDiv.innerHTML = `Certificati mostrati <strong>${visibleISINs.size}</strong> su <strong>${allISINs.size}</strong>`;
-            pagination.parentNode.insertBefore(countDiv, pagination);
+          }, 800);
+        }
+
+        aggiornaTabella();
+
+        document.addEventListener("keyup", (e) => {
+          if (e.target.matches(".gridjs-search-input")) {
+            aggiornaTabella();
           }
-        }, 800);
+        });
+
+        document.addEventListener("click", (e) => {
+          if (e.target.closest(".gridjs-pagination")) {
+            aggiornaTabella();
+          }
+        });
+
+        // Sempre nascondi il messaggio "Showing 1 to 12 of 12 results"
+        const observer = new MutationObserver(() => {
+          document.querySelectorAll(".gridjs-summary").forEach(el => el.remove());
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
       });
   </script>
 </body>
