@@ -18,8 +18,24 @@
       text-align: center;
       font-size: 1.2rem;
     }
-    table.dataTable tbody tr.hovered {
-      background-color: #f8f9fa !important;
+    .dataTables_wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .dataTables_filter {
+      order: -1;
+      align-self: flex-start;
+      margin-bottom: 10px;
+    }
+    .dataTables_filter label {
+      font-size: 10px;
+      font-weight: bold;
+    }
+    .dataTables_filter input {
+      font-size: 10px;
+      padding: 5px;
+      margin-left: 5px;
     }
     table.dataTable {
       border-collapse: collapse !important;
@@ -31,6 +47,9 @@
       max-width: 150px;
       font-size: 10px;
       background-color: white !important;
+    }
+    table.dataTable tbody tr.hovered {
+      background-color: #f8f9fa !important;
     }
     .row-top-divider td {
       border-top: 2px solid #999 !important;
@@ -63,23 +82,18 @@
     .dataTables_length, .dataTables_info {
       display: none;
     }
-    #custom-search {
-      margin-bottom: 10px;
-      font-size: 10px;
-      padding: 5px;
-      width: 250px;
-    }
   </style>
 </head>
 <body>
 
 <h1>Tabella Certificati Finanziari</h1>
-<input type="text" id="custom-search" placeholder="Cerca...">
-<div class="cert-counter" id="cert-counter"></div>
-<table id="certTable" class="display" style="width:100%">
-  <thead></thead>
-  <tbody></tbody>
-</table>
+<div id="certTable_wrapper">
+  <div id="cert-counter" class="cert-counter"></div>
+  <table id="certTable" class="display" style="width:100%">
+    <thead></thead>
+    <tbody></tbody>
+  </table>
+</div>
 
 <script>
 const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQWK_CUJUV8yI0jG51rgpz7DMcVTuLt_HqjyTLPdPDkTyIxWBn8G6yozBtVU3bVymtwOCeZPCKmNAsW/pub?output=csv";
@@ -177,6 +191,7 @@ fetch(csvUrl)
       pageLength: 30,
       searching: true,
       language: {
+        searchPlaceholder: "Cerca...",
         paginate: {
           previous: 'Precedente',
           next: 'Successivo'
@@ -201,12 +216,6 @@ fetch(csvUrl)
       $('#certTable tbody tr').removeClass('hovered');
     });
 
-    $('#custom-search').on('keyup', function() {
-      table.search(this.value).draw();
-      updateCounter();
-      addDividers();
-    });
-
     table.on('draw', function() {
       updateCounter();
       addDividers();
@@ -214,7 +223,7 @@ fetch(csvUrl)
 
     $.fn.dataTable.ext.search.push(
       function(settings, data, dataIndex) {
-        const searchTerm = $('#custom-search').val().toLowerCase();
+        const searchTerm = $('.dataTables_filter input').val().toLowerCase();
         if (!searchTerm) return true;
         const isin = $(table.row(dataIndex).node()).find('td:last-child a').text().toLowerCase();
         return isin.includes(searchTerm);
