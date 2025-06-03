@@ -29,8 +29,7 @@
       margin-bottom: 10px;
     }
     .dataTables_filter label {
-      font-size: 10px;
-      font-weight: bold;
+      display: none; /* Nasconde la label "Search" */
     }
     .dataTables_filter input {
       font-size: 10px;
@@ -100,25 +99,26 @@ const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQWK_CUJUV8yI0jG
 
 let allData = [];
 let table;
+let blockCounter = 0;
 
 function updateCounter() {
-  const visibleISIN = new Set();
+  const visibleBlocks = new Set();
   table.rows({search: 'applied'}).every(function() {
-    const isin = $(this.node()).find('td:last-child a').text().trim();
-    visibleISIN.add(isin);
+    const blockId = $(this.node()).attr('data-block-id');
+    if (blockId) {
+      visibleBlocks.add(blockId);
+    }
   });
-  const total = new Set(allData.map(d => $(d[d.length-1]).text().trim())).size;
-  document.getElementById("cert-counter").innerHTML = `Certificati mostrati <strong>${visibleISIN.size}</strong> su <strong>${total}</strong>`;
+  const total = new Set(allData.map(d => d.blockId)).size;
+  document.getElementById("cert-counter").innerHTML = `Certificati mostrati <strong>${visibleBlocks.size}</strong> su <strong>${total}</strong>`;
 }
 
 function addDividers() {
   const rows = $('#certTable tbody tr');
-  let prevISIN = null;
   rows.each(function() {
-    const isin = $(this).find('td:last-child a').text().trim();
-    if (isin !== prevISIN) {
+    const hasISIN = $(this).find('td:last-child a').length > 0;
+    if (hasISIN) {
       $(this).addClass('row-top-divider');
-      prevISIN = isin;
     }
   });
 }
@@ -180,11 +180,15 @@ fetch(csvUrl)
         if (val.includes("<div>")) return val;
         return val;
       });
-      allData.push(formattedRow);
+
+      // Blocchi
+      const hasISIN = row["ISIN"]?.startsWith("CH");
+      if (hasISIN) blockCounter++;
+      allData.push({ data: formattedRow, blockId: blockCounter });
     });
 
     table = $('#certTable').DataTable({
-      data: allData,
+      data: allData.map(d => d.data),
       columns: headers.map(h => ({ title: h })),
       ordering: false,
       paging: true,
@@ -192,10 +196,14 @@ fetch(csvUrl)
       searching: true,
       language: {
         searchPlaceholder: "Cerca...",
+        search: "", // <-- Togli il testo "Search"
         paginate: {
           previous: 'Precedente',
           next: 'Successivo'
         }
+      },
+      createdRow: function(row, data, dataIndex) {
+        $(row).attr('data-block-id', allData[dataIndex].blockId);
       },
       initComplete: function() {
         updateCounter();
@@ -203,10 +211,11 @@ fetch(csvUrl)
       }
     });
 
+    // Hover su tutto il blocco
     $('#certTable tbody').on('mouseenter', 'tr', function () {
-      const isinCell = $(this).find('td:last-child a').text().trim();
+      const blockId = $(this).attr('data-block-id');
       $('#certTable tbody tr').each(function() {
-        if ($(this).find('td:last-child a').text().trim() === isinCell) {
+        if ($(this).attr('data-block-id') === blockId) {
           $(this).addClass('hovered');
         }
       });
@@ -221,12 +230,17 @@ fetch(csvUrl)
       addDividers();
     });
 
+    // Ricerca ISIN
     $.fn.dataTable.ext.search.push(
       function(settings, data, dataIndex) {
         const searchTerm = $('.dataTables_filter input').val().toLowerCase();
         if (!searchTerm) return true;
-        const isin = $(table.row(dataIndex).node()).find('td:last-child a').text().toLowerCase();
-        return isin.includes(searchTerm);
+        const isinLink = $(table.row(dataIndex).node()).find('td:last-child a');
+        if (isinLink.length) {
+          const isin = isinLink.text().toLowerCase();
+          return isin.includes(searchTerm);
+        }
+        return true;
       }
     );
   });
