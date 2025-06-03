@@ -54,10 +54,10 @@
       background-color: white !important;
     }
     table.dataTable tbody tr.hovered {
-      background-color: #f8f9fa !important;
+      background-color: #f1f3f5 !important;
     }
     .row-top-divider td {
-      border-top: 3px solid #333 !important;
+      border-top: 2px solid #333 !important; /* Linea più sottile */
     }
     .positive {
       color: green;
@@ -109,7 +109,7 @@ const allData = [];
 
 function updateCounter() {
   const visibleBlocks = new Set();
-  table.rows({search: 'applied'}).every(function() {
+  table.rows({ search: 'applied' }).every(function() {
     const blockId = $(this.node()).attr('data-block-id');
     if (blockId) {
       visibleBlocks.add(blockId);
@@ -162,19 +162,25 @@ fetch(csvUrl)
 
       const formattedRow = headers.map(h => {
         const val = row[h] || "";
+        let safeVal = val;
+        if (typeof val === "string" && val.length > 0) {
+          safeVal = val.replace(/"/g, '&quot;'); // sicurezza contro virgolette
+        }
         if (h.toLowerCase() === "performance") {
           const num = parseFloat(val.replace('%', '').replace(',', '.'));
           if (!isNaN(num)) {
             const cls = num >= 0 ? 'positive' : 'negative';
-            return `<span class="${cls}">${val}</span>`;
+            return `<span class="${cls}" title="${safeVal}">${val}</span>`;
           }
         }
         if (h === "ISIN" && val.startsWith("CH")) {
           const link = row["Link"]?.trim();
-          return `<a class="isin-link" href="${link}" target="_blank">${val}</a>`;
+          return `<a class="isin-link" href="${link}" target="_blank" title="${safeVal}">${val}</a>`;
         }
-        if (val.includes("<div>")) return val;
-        return val;
+        if (val.includes("<div>")) {
+          return `<div title="${safeVal}">${val}</div>`;
+        }
+        return `<div title="${safeVal}">${val}</div>`;
       });
 
       if (row["ISIN"]?.startsWith("CH")) {
