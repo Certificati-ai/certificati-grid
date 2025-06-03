@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tabella Certificati Finanziari</title>
   <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
   <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
@@ -33,8 +33,7 @@
       border-collapse: collapse;
     }
 
-    .gridjs-table th,
-    .gridjs-table td {
+    .gridjs-table th, .gridjs-table td {
       padding: 6px 8px;
       white-space: nowrap;
       overflow: hidden;
@@ -43,24 +42,24 @@
       font-size: 10px;
     }
 
-    .gridjs-table th:nth-child(1) { width: 60px; } /* Cedola */
-    .gridjs-table th:nth-child(2) { width: 150px; } /* Tipologia */
-    .gridjs-table th:nth-child(3) { width: 250px; } /* Sottostante */
-    .gridjs-table th:nth-child(4) { width: 80px; }  /* Fixing */
-    .gridjs-table th:nth-child(5) { width: 80px; }  /* Performance */
-    .gridjs-table th:nth-child(6) { width: 80px; }  /* Distanza barriera */
-    .gridjs-table th:nth-child(7) { width: 80px; }  /* Barriera cedolare */
-    .gridjs-table th:nth-child(8) { width: 80px; }  /* Barriera capitale */
-    .gridjs-table th:nth-child(9) { width: 180px; } /* Meccanismo di richiamo */
-    .gridjs-table th:nth-child(10) { width: 60px; } /* Valuta */
-    .gridjs-table th:nth-child(11) { width: 80px; } /* Prezzo bid */
-    .gridjs-table th:nth-child(12) { width: 80px; } /* Prezzo ask */
-    .gridjs-table th:nth-child(13) { width: 80px; } /* Spread bid-ask */
+    .gridjs-table th:nth-child(1) { width: 70px; } /* Cedola */
+    .gridjs-table th:nth-child(2) { width: 140px; } /* Tipologia */
+    .gridjs-table th:nth-child(3) { width: 220px; } /* Sottostante */
+    .gridjs-table th:nth-child(4) { width: 90px; } /* Fixing */
+    .gridjs-table th:nth-child(5) { width: 70px; } /* Performance */
+    .gridjs-table th:nth-child(6) { width: 80px; } /* Distanza barriera */
+    .gridjs-table th:nth-child(7) { width: 80px; } /* Barriera cedolare */
+    .gridjs-table th:nth-child(8) { width: 80px; } /* Barriera capitale */
+    .gridjs-table th:nth-child(9) { width: 180px; } /* Meccanismo */
+    .gridjs-table th:nth-child(10) { width: 70px; } /* Valuta */
+    .gridjs-table th:nth-child(11) { width: 70px; } /* Prezzo bid */
+    .gridjs-table th:nth-child(12) { width: 70px; } /* Prezzo ask */
+    .gridjs-table th:nth-child(13) { width: 70px; } /* Spread bid-ask */
     .gridjs-table th:nth-child(14) { width: 80px; } /* Scadenza */
     .gridjs-table th:nth-child(15) { width: 100px; } /* Prossima osservazione */
-    .gridjs-table th:nth-child(16) { width: 60px; } /* Costi Entrata */
-    .gridjs-table th:nth-child(17) { width: 100px; } /* Emittente */
-    .gridjs-table th:nth-child(18) { width: 150px; } /* ISIN */
+    .gridjs-table th:nth-child(16) { width: 70px; } /* Costi Entrata */
+    .gridjs-table th:nth-child(17) { width: 90px; } /* Emittente */
+    .gridjs-table th:nth-child(18) { width: 140px; } /* ISIN */
 
     .positive {
       color: green;
@@ -112,29 +111,99 @@
 </head>
 <body>
   <h1>Tabella Certificati Finanziari</h1>
+  <input type="text" id="search" placeholder="Cerca..." style="margin-bottom: 10px; width: 100%; padding: 5px;" />
   <div id="table"></div>
 
   <script>
     const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQWK_CUJUV8yI0jG51rgpz7DMcVTuLt_HqjyTLPdPDkTyIxWBn8G6yozBtVU3bVymtwOCeZPCKmNAsW/pub?output=csv";
 
+    let rawData = [];
+    let grid;
+    const allISINs = new Set();
+
+    function renderTable(filteredData) {
+      const headers = Object.keys(rawData[0]).filter(h =>
+        h !== "Effetto memoria" &&
+        h !== "Tipologia di barriera" &&
+        h !== "Quanto (protezione cambio)" &&
+        h !== "Osservazione" &&
+        h !== "Link"
+      );
+
+      if (grid) {
+        grid.destroy();
+      }
+
+      grid = new gridjs.Grid({
+        columns: headers,
+        data: filteredData.map(d => d.row),
+        sort: true,
+        pagination: {
+          enabled: true,
+          limit: 30
+        },
+        language: {
+          pagination: {
+            previous: 'Precedente',
+            next: 'Successivo',
+            loading: 'Caricamento...'
+          }
+        }
+      }).render(document.getElementById("table"));
+
+      setTimeout(() => {
+        const rows = document.querySelectorAll(".gridjs-table tbody tr");
+        let prev = null;
+
+        rows.forEach(tr => {
+          tr.classList.remove('row-top-divider', 'row-bottom-divider', 'hovered');
+        });
+
+        rows.forEach((tr, i) => {
+          const isinCell = tr.querySelector("td:last-child a");
+          const currISIN = isinCell?.textContent.trim();
+
+          if (currISIN && currISIN !== prev) {
+            tr.classList.add("row-top-divider");
+            if (i > 0) rows[i - 1].classList.add("row-bottom-divider");
+            prev = currISIN;
+          }
+
+          tr.addEventListener('mouseenter', () => {
+            rows.forEach(r => {
+              const rIsin = r.querySelector("td:last-child a")?.textContent.trim();
+              if (rIsin === currISIN) {
+                r.classList.add('hovered');
+              }
+            });
+          });
+
+          tr.addEventListener('mouseleave', () => {
+            rows.forEach(r => r.classList.remove('hovered'));
+          });
+        });
+
+        document.querySelectorAll(".gridjs-summary").forEach(el => el.remove());
+      }, 800);
+    }
+
     fetch(csvUrl)
       .then(res => res.text())
       .then(csv => {
         const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
-        const raw = parsed.data.filter(row => Object.values(row)[1]?.trim() !== "----------");
+        rawData = parsed.data.filter(row => Object.values(row)[1]?.trim() !== "----------");
 
-        const allISINs = new Set();
-        const headers = Object.keys(raw[0]).filter(h =>
-          h !== "Effetto memoria" &&
-          h !== "Tipologia di barriera" &&
-          h !== "Quanto (protezione cambio)" &&
-          h !== "Osservazione" &&
-          h !== "Link"
-        );
+        rawData.forEach(row => {
+          for (const key in row) {
+            if (typeof row[key] === "string") {
+              row[key] = row[key].replace(/'/g, "");
+            }
+          }
+        });
 
         const data = [];
 
-        for (const row of raw) {
+        for (const row of rawData) {
           const currISIN = row["ISIN"];
           if (currISIN) allISINs.add(currISIN);
 
@@ -155,9 +224,14 @@
             row["Barriera cedolare"] = `${row["Barriera cedolare"]}<div>Si Memory</div>`;
           }
 
-          const formattedRow = headers.map(h => {
+          const formattedRow = Object.keys(row).filter(h =>
+            h !== "Effetto memoria" &&
+            h !== "Tipologia di barriera" &&
+            h !== "Quanto (protezione cambio)" &&
+            h !== "Osservazione" &&
+            h !== "Link"
+          ).map(h => {
             const val = row[h] || "";
-
             if (h.toLowerCase() === "performance") {
               const num = parseFloat(val.replace('%', '').replace(',', '.'));
               if (!isNaN(num)) {
@@ -165,12 +239,10 @@
                 return gridjs.html(`<span class="${cls}">${val}</span>`);
               }
             }
-
             if (h === "ISIN" && val.startsWith("CH")) {
               const link = row["Link"]?.trim();
               return gridjs.html(`<a class="isin-link" href="${link}" target="_blank">${val}</a>`);
             }
-
             if (val.includes("<div>")) return gridjs.html(val);
             return val;
           });
@@ -178,86 +250,25 @@
           data.push({ row: formattedRow, isin: currISIN });
         }
 
-        const grid = new gridjs.Grid({
-          columns: headers,
-          data: data.map(d => d.row),
-          search: {
-            enabled: true,
-            placeholder: "Cerca..."
-          },
-          sort: true,
-          pagination: {
-            enabled: true,
-            limit: 30
-          },
-          language: {
-            search: { placeholder: "Cerca..." },
-            pagination: {
-              previous: 'Precedente',
-              next: 'Successivo',
-              loading: 'Caricamento...'
-            }
-          }
-        });
+        window.fullData = data;
+        renderTable(data);
 
-        grid.render(document.getElementById("table"));
-
-        function aggiornaTabella() {
-          setTimeout(() => {
-            const rows = document.querySelectorAll(".gridjs-table tbody tr");
-            const visibleISINs = new Set();
-            let prev = null;
-
-            rows.forEach(tr => {
-              tr.classList.remove('row-top-divider', 'row-bottom-divider', 'hovered');
-            });
-
-            rows.forEach((tr, i) => {
-              const isinCell = tr.querySelector("td:last-child a");
-              const currISIN = isinCell?.textContent.trim();
-
-              if (currISIN) visibleISINs.add(currISIN);
-
-              if (currISIN && currISIN !== prev) {
-                tr.classList.add("row-top-divider");
-                if (i > 0) rows[i - 1].classList.add("row-bottom-divider");
-                prev = currISIN;
+        document.getElementById("search").addEventListener("input", function() {
+          const q = this.value.trim().toLowerCase();
+          if (q === "") {
+            renderTable(window.fullData);
+          } else {
+            const matchedISINs = new Set();
+            window.fullData.forEach(d => {
+              if (d.row.some(cell => (typeof cell === 'string' && cell.toLowerCase().includes(q)) ||
+                (typeof cell === 'object' && cell.props?.children?.toString().toLowerCase().includes(q)))) {
+                matchedISINs.add(d.isin);
               }
-
-              tr.addEventListener('mouseenter', () => {
-                rows.forEach(r => {
-                  const rIsin = r.querySelector("td:last-child a")?.textContent.trim();
-                  if (rIsin === currISIN) {
-                    r.classList.add('hovered');
-                  }
-                });
-              });
-
-              tr.addEventListener('mouseleave', () => {
-                rows.forEach(r => r.classList.remove('hovered'));
-              });
             });
-          }, 800);
-        }
-
-        aggiornaTabella();
-
-        document.addEventListener("keyup", (e) => {
-          if (e.target.matches(".gridjs-search-input")) {
-            aggiornaTabella();
+            const filtered = window.fullData.filter(d => matchedISINs.has(d.isin));
+            renderTable(filtered);
           }
         });
-
-        document.addEventListener("click", (e) => {
-          if (e.target.closest(".gridjs-pagination")) {
-            aggiornaTabella();
-          }
-        });
-
-        const observer = new MutationObserver(() => {
-          document.querySelectorAll(".gridjs-summary").forEach(el => el.remove());
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
       });
   </script>
 </body>
