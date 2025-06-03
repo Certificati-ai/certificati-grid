@@ -28,6 +28,9 @@
       max-width: 150px;
       font-size: 10px;
     }
+    .row-top-divider td {
+      border-top: 2px solid #999 !important;
+    }
     .positive {
       color: green;
       font-weight: bold;
@@ -53,6 +56,14 @@
       color: #212529;
       font-weight: 600;
     }
+    /* Nasconde il dropdown "Show entries" */
+    .dataTables_length {
+      display: none;
+    }
+    /* Nasconde "Showing 1 to 12 of 12 entries" */
+    .dataTables_info {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -73,10 +84,23 @@ let table;
 function updateCounter() {
   const visibleISIN = new Set();
   table.rows({search: 'applied'}).every(function() {
-    const isin = this.data()[this.data()[0].length - 1];
+    const isin = $(this.node()).find('td:last-child a').text().trim();
     visibleISIN.add(isin);
   });
-  document.getElementById("cert-counter").innerHTML = `Certificati mostrati <strong>${visibleISIN.size}</strong> su <strong>${new Set(allData.map(d => d[d.length-1])).size}</strong>`;
+  const total = new Set(allData.map(d => $(d[d.length-1]).text().trim())).size;
+  document.getElementById("cert-counter").innerHTML = `Certificati mostrati <strong>${visibleISIN.size}</strong> su <strong>${total}</strong>`;
+}
+
+function addDividers() {
+  const rows = $('#certTable tbody tr');
+  let prevISIN = null;
+  rows.each(function() {
+    const isin = $(this).find('td:last-child a').text().trim();
+    if (isin !== prevISIN) {
+      $(this).addClass('row-top-divider');
+      prevISIN = isin;
+    }
+  });
 }
 
 fetch(csvUrl)
@@ -145,6 +169,7 @@ fetch(csvUrl)
       ordering: true,
       paging: true,
       pageLength: 30,
+      searching: true,
       language: {
         searchPlaceholder: "Cerca...",
         paginate: {
@@ -155,13 +180,14 @@ fetch(csvUrl)
       },
       initComplete: function() {
         updateCounter();
+        addDividers();
       }
     });
 
     $('#certTable tbody').on('mouseenter', 'tr', function () {
-      const isinCell = $(this).find('td:last-child').text().trim();
+      const isinCell = $(this).find('td:last-child a').text().trim();
       $('#certTable tbody tr').each(function() {
-        if ($(this).find('td:last-child').text().trim() === isinCell) {
+        if ($(this).find('td:last-child a').text().trim() === isinCell) {
           $(this).addClass('hovered');
         }
       });
@@ -173,6 +199,7 @@ fetch(csvUrl)
 
     table.on('draw', function() {
       updateCounter();
+      addDividers();
     });
 
     // Custom filter to match entire ISIN group
@@ -180,7 +207,7 @@ fetch(csvUrl)
       function(settings, data, dataIndex) {
         const searchTerm = $('input[type="search"]').val().toLowerCase();
         if (!searchTerm) return true;
-        const isin = data[data.length - 1].toLowerCase();
+        const isin = $(table.row(dataIndex).node()).find('td:last-child a').text().toLowerCase();
         return isin.includes(searchTerm);
       }
     );
@@ -189,4 +216,3 @@ fetch(csvUrl)
 
 </body>
 </html>
-
