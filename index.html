@@ -130,7 +130,7 @@ fetch(csvUrl)
     let blockCounter = 0;
 
     rawData.forEach(row => {
-      if (row["ISIN"]?.startsWith("CH")) {
+      if (row["ISIN"] && row["ISIN"].startsWith("CH")) {
         if (currentCertificato) {
           certificati.push(currentCertificato);
         }
