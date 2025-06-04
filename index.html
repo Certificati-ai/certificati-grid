@@ -2,43 +2,58 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Tabella Certificati Finanziari - Blocchi</title>
+  <title>Tabella Certificati Finanziari - Blocco + Sottostanti</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      font-size: 10px;
+      font-size: 12px;
       background: #fff;
       padding: 20px;
     }
     h1 {
       text-align: center;
-      font-size: 1.2rem;
+      font-size: 1.5rem;
+      margin-bottom: 20px;
     }
     #searchBox {
       margin-bottom: 20px;
     }
     #searchBox input {
-      font-size: 10px;
+      font-size: 12px;
       padding: 5px;
       width: 300px;
     }
     .certificato {
-      margin-bottom: 20px;
+      margin-bottom: 30px;
       border-top: 2px solid #333;
       padding-top: 10px;
     }
-    .certificato-table {
+    .cert-info {
+      display: grid;
+      grid-template-columns: repeat(9, auto);
+      gap: 15px;
+      align-items: center;
+      background-color: #f8f9fa;
+      padding: 10px;
+      font-weight: bold;
+    }
+    .cert-info div {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .sottostanti-table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 10px;
     }
-    .certificato-table th, .certificato-table td {
+    .sottostanti-table th, .sottostanti-table td {
       text-align: left;
-      padding: 4px;
+      padding: 6px;
       border-bottom: 1px solid #ddd;
-      max-width: 150px;
+      max-width: 200px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -87,13 +102,7 @@ fetch(csvUrl)
     const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
     const rawData = parsed.data.filter(row => Object.values(row)[1]?.trim() !== "----------");
 
-    headers = Object.keys(rawData[0]).filter(h => 
-      h !== "Effetto memoria" &&
-      h !== "Tipologia di barriera" &&
-      h !== "Quanto (protezione cambio)" &&
-      h !== "Osservazione" &&
-      h !== "Link"
-    );
+    headers = Object.keys(rawData[0]);
 
     let currentCertificato = null;
 
@@ -116,15 +125,17 @@ fetch(csvUrl)
       }
 
       if (row["ISIN"]?.startsWith("CH")) {
-        // Nuovo certificato
         if (currentCertificato) {
           certificati.push(currentCertificato);
         }
         currentCertificato = {
-          rows: []
+          main: row,
+          sottostanti: []
         };
       }
-      currentCertificato.rows.push(row);
+      if (currentCertificato) {
+        currentCertificato.sottostanti.push(row);
+      }
     });
     if (currentCertificato) {
       certificati.push(currentCertificato);
@@ -141,12 +152,35 @@ function renderCertificati(data) {
     const div = document.createElement('div');
     div.className = 'certificato';
 
+    // Info certificato
+    const info = document.createElement('div');
+    info.className = 'cert-info';
+
+    const main = cert.main;
+
+    info.innerHTML = `
+      <div>${main["Cedola"] || ""}</div>
+      <div>${main["Tipologia"] || ""}</div>
+      <div>${main["Barriera capitale"] || ""}</div>
+      <div>${main["Prezzo bid"] || ""}</div>
+      <div>${main["Prezzo ask"] || ""}</div>
+      <div>${main["Spread bid-ask"] || ""}</div>
+      <div>${main["Scadenza"] || ""}</div>
+      <div>${main["Prossima Osservazione"] || ""}</div>
+      <div>${main["Barriera cedolare"] || ""}</div>
+      <div>${main["Emittente"] || ""}</div>
+      <div><a class="isin-link" href="${main["Link"] || "#"}" target="_blank">${main["ISIN"] || ""}</a></div>
+    `;
+
+    div.appendChild(info);
+
+    // Tabella sottostanti
     const table = document.createElement('table');
-    table.className = 'certificato-table';
+    table.className = 'sottostanti-table';
 
     const thead = document.createElement('thead');
     const trHead = document.createElement('tr');
-    headers.forEach(h => {
+    ["Sottostante", "Fixing", "Performance"].forEach(h => {
       const th = document.createElement('th');
       th.innerText = h;
       trHead.appendChild(th);
@@ -155,33 +189,30 @@ function renderCertificati(data) {
     table.appendChild(thead);
 
     const tbody = document.createElement('tbody');
-    cert.rows.forEach(row => {
+    cert.sottostanti.forEach(row => {
       const tr = document.createElement('tr');
-      headers.forEach(h => {
+      ["Sottostante", "Fixing", "Performance"].forEach(h => {
         const td = document.createElement('td');
         let val = row[h] || "";
-        if (h.toLowerCase() === "performance") {
+        if (h === "Performance") {
           const num = parseFloat(val.replace('%', '').replace(',', '.'));
           if (!isNaN(num)) {
             td.className = num >= 0 ? 'positive' : 'negative';
           }
         }
-        if (h === "ISIN" && val.startsWith("CH")) {
-          const link = row["Link"]?.trim();
-          td.innerHTML = `<a class="isin-link" href="${link}" target="_blank" title="${val}">${val}</a>`;
-        } else {
-          td.innerHTML = `<div title="${val}">${val}</div>`;
-        }
+        td.innerHTML = `<div title="${val}">${val}</div>`;
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
+
     div.appendChild(table);
     container.appendChild(div);
   });
 }
 
+// Ricerca su tutto il certificato
 document.getElementById('searchInput').addEventListener('keyup', function() {
   const searchTerm = this.value.toLowerCase();
 
@@ -198,4 +229,3 @@ document.getElementById('searchInput').addEventListener('keyup', function() {
 
 </body>
 </html>
-
