@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Tabella Certificati Finanziari - Blocchi</title>
+  <title>Tabella Certificati Finanziari</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
@@ -25,14 +25,14 @@
       width: 300px;
     }
     .certificato {
-      margin-bottom: 20px;
+      margin-bottom: 10px;
       border-top: 2px solid #333;
-      padding-top: 10px;
+      padding-top: 5px;
     }
     .certificato-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 10px;
+      margin-top: 5px;
     }
     .certificato-table th, .certificato-table td {
       text-align: left;
@@ -120,10 +120,12 @@ fetch(csvUrl)
           certificati.push(currentCertificato);
         }
         currentCertificato = {
-          rows: []
+          certificato: row,
+          sottostanti: []
         };
+      } else if (currentCertificato) {
+        currentCertificato.sottostanti.push(row);
       }
-      currentCertificato.rows.push(row);
     });
     if (currentCertificato) {
       certificati.push(currentCertificato);
@@ -154,22 +156,43 @@ function renderCertificati(data) {
     table.appendChild(thead);
 
     const tbody = document.createElement('tbody');
-    cert.rows.forEach((row, idx) => {
+
+    // Row certificato
+    const trCert = document.createElement('tr');
+    headers.forEach(h => {
+      const td = document.createElement('td');
+      let val = cert.certificato[h] || "";
+
+      if (["Sottostante", "Fixing", "Performance", "Distanza da barriera"].includes(h)) {
+        val = "";
+      }
+
+      if (h.toLowerCase() === "performance" && val) {
+        const num = parseFloat(val.replace('%', '').replace(',', '.'));
+        if (!isNaN(num)) {
+          td.className = num >= 0 ? 'positive' : 'negative';
+        }
+      }
+
+      if (h === "ISIN" && cert.certificato[h]) {
+        const link = cert.certificato["Link"]?.trim();
+        td.innerHTML = `<a class="isin-link" href="${link}" target="_blank" title="${cert.certificato[h]}">${cert.certificato[h]}</a>`;
+      } else {
+        td.innerHTML = `<div title="${val}">${val}</div>`;
+      }
+      trCert.appendChild(td);
+    });
+    tbody.appendChild(trCert);
+
+    // Rows sottostanti
+    cert.sottostanti.forEach(row => {
       const tr = document.createElement('tr');
       headers.forEach(h => {
         const td = document.createElement('td');
         let val = row[h] || "";
 
-        if (idx === 0) {
-          // Riga certificato: svuotare solo queste colonne
-          if (["Sottostante", "Fixing", "Performance", "Distanza da barriera"].includes(h)) {
-            val = "";
-          }
-        } else {
-          // Riga sottostante: svuotare solo queste colonne
-          if (["Cedola", "Tipologia", "Meccanismo di richiamo / protezione", "Prezzo bid", "Prezzo ask", "Spread bid-ask", "Scadenza", "Costi Entrata", "Emittente", "ISIN"].includes(h)) {
-            val = "";
-          }
+        if (["Cedola", "Tipologia", "Meccanismo di richiamo / protezione", "Prezzo bid", "Prezzo ask", "Spread bid-ask", "Scadenza", "Costi Entrata", "Emittente", "ISIN"].includes(h)) {
+          val = "";
         }
 
         if (h.toLowerCase() === "performance" && val) {
@@ -179,16 +202,12 @@ function renderCertificati(data) {
           }
         }
 
-        if (h === "ISIN" && row[h] && idx === 0) {
-          const link = row["Link"]?.trim();
-          td.innerHTML = `<a class="isin-link" href="${link}" target="_blank" title="${row[h]}">${row[h]}</a>`;
-        } else {
-          td.innerHTML = `<div title="${val}">${val}</div>`;
-        }
+        td.innerHTML = `<div title="${val}">${val}</div>`;
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
     });
+
     table.appendChild(tbody);
     div.appendChild(table);
     container.appendChild(div);
