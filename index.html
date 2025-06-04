@@ -18,6 +18,7 @@
     }
     #searchBox {
       margin-bottom: 20px;
+      text-align: center;
     }
     #searchBox input {
       font-size: 10px;
@@ -25,14 +26,14 @@
       width: 300px;
     }
     .certificato {
-      margin-bottom: 10px;
+      margin-bottom: 20px;
       border-top: 2px solid #333;
-      padding-top: 5px;
+      padding-top: 10px;
     }
     .certificato-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 5px;
+      margin-top: 10px;
     }
     .certificato-table th, .certificato-table td {
       text-align: left;
@@ -99,20 +100,20 @@ fetch(csvUrl)
 
     rawData.forEach(row => {
       if ((row["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
-        row["Valuta"] = `${row["Valuta"]}<div>Quanto</div>`;
+        row["Valuta"] = `${row["Valuta"]} (Quanto)`;
       }
 
       if (row["Osservazione"] && row["Prossima Osservazione"]) {
-        row["Prossima Osservazione"] = `${row["Prossima Osservazione"]}<div>${row["Osservazione"]}</div>`;
+        row["Prossima Osservazione"] = `${row["Prossima Osservazione"]} (${row["Osservazione"]})`;
       }
 
       if (row["Tipologia di barriera"]?.toLowerCase().includes("solo a scadenza")) {
-        row["Barriera capitale"] = `${row["Barriera capitale"]}<div>Europea</div>`;
+        row["Barriera capitale"] = `${row["Barriera capitale"]} (Europea)`;
       }
 
       const mem = row["Effetto memoria"];
       if (mem?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() === "si") {
-        row["Barriera cedolare"] = `${row["Barriera cedolare"]}<div>Si Memory</div>`;
+        row["Barriera cedolare"] = `${row["Barriera cedolare"]} (Si Memory)`;
       }
 
       if (row["ISIN"]?.startsWith("CH")) {
@@ -138,25 +139,22 @@ function renderCertificati(data) {
   const container = document.getElementById('certificatiContainer');
   container.innerHTML = '';
 
+  const table = document.createElement('table');
+  table.className = 'certificato-table';
+
+  const thead = document.createElement('thead');
+  const trHead = document.createElement('tr');
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.innerText = h;
+    trHead.appendChild(th);
+  });
+  thead.appendChild(trHead);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+
   data.forEach(cert => {
-    const div = document.createElement('div');
-    div.className = 'certificato';
-
-    const table = document.createElement('table');
-    table.className = 'certificato-table';
-
-    const thead = document.createElement('thead');
-    const trHead = document.createElement('tr');
-    headers.forEach(h => {
-      const th = document.createElement('th');
-      th.innerText = h;
-      trHead.appendChild(th);
-    });
-    thead.appendChild(trHead);
-    table.appendChild(thead);
-
-    const tbody = document.createElement('tbody');
-
     // Row certificato
     const trCert = document.createElement('tr');
     headers.forEach(h => {
@@ -191,7 +189,8 @@ function renderCertificati(data) {
         const td = document.createElement('td');
         let val = row[h] || "";
 
-        if (["Cedola", "Tipologia", "Meccanismo di richiamo / protezione", "Prezzo bid", "Prezzo ask", "Spread bid-ask", "Scadenza", "Costi Entrata", "Emittente", "ISIN"].includes(h)) {
+        // Columns da lasciare vuote per sottostanti
+        if (!["Sottostante", "Fixing", "Performance", "Distanza da barriera"].includes(h)) {
           val = "";
         }
 
@@ -207,22 +206,21 @@ function renderCertificati(data) {
       });
       tbody.appendChild(tr);
     });
-
-    table.appendChild(tbody);
-    div.appendChild(table);
-    container.appendChild(div);
   });
+
+  table.appendChild(tbody);
+  container.appendChild(table);
 }
 
 document.getElementById('searchInput').addEventListener('keyup', function() {
   const searchTerm = this.value.toLowerCase();
 
-  document.querySelectorAll('.certificato').forEach(cert => {
-    const text = cert.innerText.toLowerCase();
+  document.querySelectorAll('tbody tr').forEach(row => {
+    const text = row.innerText.toLowerCase();
     if (text.includes(searchTerm)) {
-      cert.classList.remove('hidden');
+      row.style.display = '';
     } else {
-      cert.classList.add('hidden');
+      row.style.display = 'none';
     }
   });
 });
