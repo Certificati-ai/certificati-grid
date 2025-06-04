@@ -216,10 +216,11 @@ fetch(csvUrl)
       }
     });
 
-    // Hover su tutto il blocco
+    // Hover su tutto il blocco usando rows().nodes()
     $('#certTable tbody').on('mouseenter', 'tr', function () {
       const blockId = $(this).attr('data-block-id');
-      $('#certTable tbody tr').each(function() {
+      const nodes = table.rows({ page: 'current' }).nodes();
+      $(nodes).each(function() {
         if ($(this).attr('data-block-id') === blockId) {
           $(this).addClass('hovered');
         }
@@ -227,7 +228,8 @@ fetch(csvUrl)
     });
 
     $('#certTable tbody').on('mouseleave', 'tr', function () {
-      $('#certTable tbody tr').removeClass('hovered');
+      const nodes = table.rows({ page: 'current' }).nodes();
+      $(nodes).removeClass('hovered');
     });
 
     table.on('draw', function() {
