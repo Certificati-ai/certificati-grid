@@ -33,7 +33,7 @@
       font-weight: bold;
     }
     .dataTables_filter label::before {
-      content: ""; /* Elimina "Search" */
+      content: "";
     }
     .dataTables_filter label > input {
       margin-left: 0;
@@ -57,7 +57,7 @@
       background-color: #f1f3f5 !important;
     }
     .row-top-divider td {
-      border-top: 2px solid #333 !important; /* Linea più sottile */
+      border-top: 2px solid #333 !important;
     }
     .positive {
       color: green;
@@ -162,10 +162,7 @@ fetch(csvUrl)
 
       const formattedRow = headers.map(h => {
         const val = row[h] || "";
-        let safeVal = val;
-        if (typeof val === "string" && val.length > 0) {
-          safeVal = val.replace(/"/g, '&quot;'); // sicurezza contro virgolette
-        }
+        const safeVal = val.replace(/"/g, '&quot;'); // sicurezza
         if (h.toLowerCase() === "performance") {
           const num = parseFloat(val.replace('%', '').replace(',', '.'));
           if (!isNaN(num)) {
@@ -176,9 +173,6 @@ fetch(csvUrl)
         if (h === "ISIN" && val.startsWith("CH")) {
           const link = row["Link"]?.trim();
           return `<a class="isin-link" href="${link}" target="_blank" title="${safeVal}">${val}</a>`;
-        }
-        if (val.includes("<div>")) {
-          return `<div title="${safeVal}">${val}</div>`;
         }
         return `<div title="${safeVal}">${val}</div>`;
       });
@@ -216,10 +210,10 @@ fetch(csvUrl)
       }
     });
 
-    // Hover su tutto il blocco usando rows().nodes()
+    // Hover su tutto il blocco
     $('#certTable tbody').on('mouseenter', 'tr', function () {
       const blockId = $(this).attr('data-block-id');
-      const nodes = table.rows({ page: 'current' }).nodes();
+      const nodes = table.rows().nodes(); // tutti i nodi, non solo current page
       $(nodes).each(function() {
         if ($(this).attr('data-block-id') === blockId) {
           $(this).addClass('hovered');
@@ -228,27 +222,41 @@ fetch(csvUrl)
     });
 
     $('#certTable tbody').on('mouseleave', 'tr', function () {
-      const nodes = table.rows({ page: 'current' }).nodes();
+      const nodes = table.rows().nodes();
       $(nodes).removeClass('hovered');
+    });
+
+    // Custom search per blocco
+    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+      const searchTerm = $('.dataTables_filter input').val().toLowerCase();
+      if (!searchTerm) return true;
+
+      const node = table.row(dataIndex).node();
+      const blockId = $(node).attr('data-block-id');
+
+      const nodes = table.rows().nodes();
+      let blockHasMatch = false;
+
+      $(nodes).each(function() {
+        if ($(this).attr('data-block-id') === blockId) {
+          const text = $(this).text().toLowerCase();
+          if (text.includes(searchTerm)) {
+            blockHasMatch = true;
+          }
+        }
+      });
+
+      return blockHasMatch;
+    });
+
+    $('.dataTables_filter input').on('keyup', function() {
+      table.draw();
+      updateCounter();
     });
 
     table.on('draw', function() {
       updateCounter();
     });
-
-    // Ricerca ISIN
-    $.fn.dataTable.ext.search.push(
-      function(settings, data, dataIndex) {
-        const searchTerm = $('.dataTables_filter input').val().toLowerCase();
-        if (!searchTerm) return true;
-        const isinLink = $(table.row(dataIndex).node()).find('td').eq(headers.indexOf('ISIN')).find('a');
-        if (isinLink.length) {
-          const isin = isinLink.text().toLowerCase();
-          return isin.includes(searchTerm);
-        }
-        return true;
-      }
-    );
   });
 </script>
 
