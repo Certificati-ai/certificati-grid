@@ -9,46 +9,55 @@
     body {
       font-family: Arial, sans-serif;
       font-size: 10px;
-      background: #fff;
+      margin: 0;
       padding: 20px;
+      background: #fff;
     }
     h1 {
       text-align: center;
       font-size: 1.2rem;
+      margin-bottom: 20px;
     }
     #searchBox {
-      margin-bottom: 20px;
       text-align: center;
+      margin-bottom: 20px;
     }
-    #searchBox input {
+    #searchInput {
       font-size: 10px;
-      padding: 5px;
+      padding: 4px 8px;
       width: 300px;
     }
-    .certificato {
-      margin-bottom: 20px;
-      border-top: 2px solid #333;
-      padding-top: 10px;
+    .container {
+      width: 100%;
+      overflow-x: auto;
     }
-    .certificato-table {
+    table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 10px;
+      table-layout: auto;
     }
-    .certificato-table th, .certificato-table td {
+    th, td {
+      border: 1px solid #ddd;
+      padding: 4px 6px;
       text-align: left;
-      padding: 4px;
-      border-bottom: 1px solid #ddd;
-      max-width: 150px;
+      white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
     }
-    .certificato:hover {
-      background-color: #f1f3f5;
+    th {
+      background-color: #f2f2f2;
+      font-weight: bold;
     }
-    .hidden {
-      display: none;
+    tr.certificato-row {
+      background-color: #f9f9f9;
+      font-weight: bold;
+      border-top: 2px solid #333;
+    }
+    tr.sottostante-row {
+      background-color: #fff;
+    }
+    tr.hovered {
+      background-color: #eef2f7;
     }
     .positive {
       color: green;
@@ -66,6 +75,9 @@
     .isin-link:hover {
       text-decoration: underline;
     }
+    .hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -74,13 +86,39 @@
 <div id="searchBox">
   <input type="text" id="searchInput" placeholder="Cerca...">
 </div>
-<div id="certificatiContainer"></div>
+<div class="container">
+  <table id="certificatiTable">
+    <thead>
+      <tr>
+        <th>Cedola</th>
+        <th>Tipologia</th>
+        <th>Sottostante</th>
+        <th>Fixing</th>
+        <th>Performance</th>
+        <th>Distanza da barriera</th>
+        <th>Barriera cedolare</th>
+        <th>Barriera capitale</th>
+        <th>Meccanismo di richiamo / protezione</th>
+        <th>Valuta</th>
+        <th>Prezzo bid</th>
+        <th>Prezzo ask</th>
+        <th>Spread bid-ask</th>
+        <th>Scadenza</th>
+        <th>Prossima Osservazione</th>
+        <th>Costi Entrata</th>
+        <th>Emittente</th>
+        <th>ISIN</th>
+      </tr>
+    </thead>
+    <tbody id="certificatiBody">
+    </tbody>
+  </table>
+</div>
 
 <script>
 const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQWK_CUJUV8yI0jG51rgpz7DMcVTuLt_HqjyTLPdPDkTyIxWBn8G6yozBtVU3bVymtwOCeZPCKmNAsW/pub?output=csv";
 
 let certificati = [];
-let headers = [];
 
 fetch(csvUrl)
   .then(res => res.text())
@@ -88,40 +126,18 @@ fetch(csvUrl)
     const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
     const rawData = parsed.data.filter(row => Object.values(row)[1]?.trim() !== "----------");
 
-    headers = Object.keys(rawData[0]).filter(h => 
-      h !== "Effetto memoria" &&
-      h !== "Tipologia di barriera" &&
-      h !== "Quanto (protezione cambio)" &&
-      h !== "Osservazione" &&
-      h !== "Link"
-    );
-
     let currentCertificato = null;
+    let blockCounter = 0;
 
     rawData.forEach(row => {
-      if ((row["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
-        row["Valuta"] = `${row["Valuta"]} (Quanto)`;
-      }
-
-      if (row["Osservazione"] && row["Prossima Osservazione"]) {
-        row["Prossima Osservazione"] = `${row["Prossima Osservazione"]} (${row["Osservazione"]})`;
-      }
-
-      if (row["Tipologia di barriera"]?.toLowerCase().includes("solo a scadenza")) {
-        row["Barriera capitale"] = `${row["Barriera capitale"]} (Europea)`;
-      }
-
-      const mem = row["Effetto memoria"];
-      if (mem?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() === "si") {
-        row["Barriera cedolare"] = `${row["Barriera cedolare"]} (Si Memory)`;
-      }
-
-      if (row["ISIN"]?.startsWith("CH")) {
+      if (row["ISIN"] && row["ISIN"].startsWith("CH")) {
         if (currentCertificato) {
           certificati.push(currentCertificato);
         }
+        blockCounter++;
         currentCertificato = {
-          certificato: row,
+          blockId: blockCounter,
+          main: row,
           sottostanti: []
         };
       } else if (currentCertificato) {
@@ -136,91 +152,122 @@ fetch(csvUrl)
   });
 
 function renderCertificati(data) {
-  const container = document.getElementById('certificatiContainer');
-  container.innerHTML = '';
-
-  const table = document.createElement('table');
-  table.className = 'certificato-table';
-
-  const thead = document.createElement('thead');
-  const trHead = document.createElement('tr');
-  headers.forEach(h => {
-    const th = document.createElement('th');
-    th.innerText = h;
-    trHead.appendChild(th);
-  });
-  thead.appendChild(trHead);
-  table.appendChild(thead);
-
-  const tbody = document.createElement('tbody');
+  const tbody = document.getElementById('certificatiBody');
+  tbody.innerHTML = '';
 
   data.forEach(cert => {
-    // Row certificato
-    const trCert = document.createElement('tr');
-    headers.forEach(h => {
-      const td = document.createElement('td');
-      let val = cert.certificato[h] || "";
+    const firstSottostante = cert.sottostanti.length > 0 ? cert.sottostanti[0] : null;
 
-      if (["Sottostante", "Fixing", "Performance", "Distanza da barriera"].includes(h)) {
-        val = "";
-      }
+    // Riga principale certificato
+    const trMain = document.createElement('tr');
+    trMain.className = 'certificato-row';
+    trMain.setAttribute('data-block-id', cert.blockId);
+    fillRow(trMain, cert.main, firstSottostante, true);
+    tbody.appendChild(trMain);
 
-      if (h.toLowerCase() === "performance" && val) {
-        const num = parseFloat(val.replace('%', '').replace(',', '.'));
-        if (!isNaN(num)) {
-          td.className = num >= 0 ? 'positive' : 'negative';
-        }
-      }
-
-      if (h === "ISIN" && cert.certificato[h]) {
-        const link = cert.certificato["Link"]?.trim();
-        td.innerHTML = `<a class="isin-link" href="${link}" target="_blank" title="${cert.certificato[h]}">${cert.certificato[h]}</a>`;
-      } else {
-        td.innerHTML = `<div title="${val}">${val}</div>`;
-      }
-      trCert.appendChild(td);
-    });
-    tbody.appendChild(trCert);
-
-    // Rows sottostanti
-    cert.sottostanti.forEach(row => {
+    // Righe sottostanti successive (se ci sono)
+    cert.sottostanti.slice(1).forEach(row => {
       const tr = document.createElement('tr');
-      headers.forEach(h => {
-        const td = document.createElement('td');
-        let val = row[h] || "";
-
-        // Columns da lasciare vuote per sottostanti
-        if (!["Sottostante", "Fixing", "Performance", "Distanza da barriera"].includes(h)) {
-          val = "";
-        }
-
-        if (h.toLowerCase() === "performance" && val) {
-          const num = parseFloat(val.replace('%', '').replace(',', '.'));
-          if (!isNaN(num)) {
-            td.className = num >= 0 ? 'positive' : 'negative';
-          }
-        }
-
-        td.innerHTML = `<div title="${val}">${val}</div>`;
-        tr.appendChild(td);
-      });
+      tr.className = 'sottostante-row';
+      tr.setAttribute('data-block-id', cert.blockId);
+      fillRow(tr, {}, row, false);
       tbody.appendChild(tr);
     });
   });
 
-  table.appendChild(tbody);
-  container.appendChild(table);
+  addHoverEffect();
 }
 
+function fillRow(tr, mainData, sottostanteData, isCertificato) {
+  const columns = [
+    "Cedola", "Tipologia", "Sottostante", "Fixing", "Performance",
+    "Distanza da barriera", "Barriera cedolare", "Barriera capitale",
+    "Meccanismo di richiamo / protezione", "Valuta", "Prezzo bid", "Prezzo ask",
+    "Spread bid-ask", "Scadenza", "Prossima Osservazione", "Costi Entrata", "Emittente", "ISIN"
+  ];
+
+  columns.forEach(h => {
+    const td = document.createElement('td');
+    let val = "";
+
+    if (isCertificato) {
+      if (["Sottostante", "Fixing", "Performance", "Distanza da barriera"].includes(h)) {
+        val = sottostanteData[h] || "";
+      } else {
+        val = mainData[h] || "";
+      }
+    } else {
+      if (["Sottostante", "Fixing", "Performance", "Distanza da barriera", "Barriera cedolare", "Barriera capitale", "Valuta", "Prossima Osservazione"].includes(h)) {
+        val = sottostanteData[h] || "";
+      }
+    }
+
+    if (h === "Valuta" && val) {
+      if ((mainData["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
+        val = `${val}\nQuanto`;
+      }
+    }
+
+    if (h === "Prossima Osservazione" && val && mainData["Osservazione"]) {
+      val = `${val}\n${mainData["Osservazione"]}`;
+    }
+
+    if (h === "Performance" && val) {
+      const num = parseFloat(val.replace('%', '').replace(',', '.'));
+      if (!isNaN(num)) {
+        td.className = num >= 0 ? 'positive' : 'negative';
+      }
+    }
+
+    if (h === "ISIN" && val && isCertificato) {
+      td.innerHTML = `<a class="isin-link" href="${mainData["Link"] || "#"}" target="_blank">${val}</a>`;
+    } else {
+      td.innerText = val;
+    }
+    tr.appendChild(td);
+  });
+}
+
+function addHoverEffect() {
+  const rows = document.querySelectorAll('#certificatiBody tr');
+
+  rows.forEach(row => {
+    row.addEventListener('mouseenter', function() {
+      const blockId = this.getAttribute('data-block-id');
+      rows.forEach(r => {
+        if (r.getAttribute('data-block-id') === blockId) {
+          r.classList.add('hovered');
+        }
+      });
+    });
+    row.addEventListener('mouseleave', function() {
+      const blockId = this.getAttribute('data-block-id');
+      rows.forEach(r => {
+        if (r.getAttribute('data-block-id') === blockId) {
+          r.classList.remove('hovered');
+        }
+      });
+    });
+  });
+}
+
+// Ricerca su tutto il certificato
 document.getElementById('searchInput').addEventListener('keyup', function() {
   const searchTerm = this.value.toLowerCase();
+  const rows = document.querySelectorAll('#certificatiBody tr.certificato-row');
 
-  document.querySelectorAll('tbody tr').forEach(row => {
-    const text = row.innerText.toLowerCase();
-    if (text.includes(searchTerm)) {
-      row.style.display = '';
+  rows.forEach(cert => {
+    let block = [cert];
+    let next = cert.nextElementSibling;
+    while (next && !next.classList.contains('certificato-row')) {
+      block.push(next);
+      next = next.nextElementSibling;
+    }
+    const blockText = block.map(row => row.innerText.toLowerCase()).join(' ');
+    if (blockText.includes(searchTerm)) {
+      block.forEach(row => row.classList.remove('hidden'));
     } else {
-      row.style.display = 'none';
+      block.forEach(row => row.classList.add('hidden'));
     }
   });
 });
