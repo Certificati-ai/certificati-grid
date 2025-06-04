@@ -156,17 +156,15 @@ function renderCertificati(data) {
   tbody.innerHTML = '';
 
   data.forEach(cert => {
-    const firstSottostante = cert.sottostanti.length > 0 ? cert.sottostanti[0] : null;
-
     // Riga principale certificato
     const trMain = document.createElement('tr');
     trMain.className = 'certificato-row';
     trMain.setAttribute('data-block-id', cert.blockId);
-    fillRow(trMain, cert.main, firstSottostante, true);
+    fillRow(trMain, cert.main, null, true);
     tbody.appendChild(trMain);
 
-    // Righe sottostanti successive (se ci sono)
-    cert.sottostanti.slice(1).forEach(row => {
+    // Righe sottostanti (tutti i sottostanti)
+    cert.sottostanti.forEach(row => {
       const tr = document.createElement('tr');
       tr.className = 'sottostante-row';
       tr.setAttribute('data-block-id', cert.blockId);
@@ -192,7 +190,7 @@ function fillRow(tr, mainData, sottostanteData, isCertificato) {
 
     if (isCertificato) {
       if (["Sottostante", "Fixing", "Performance", "Distanza da barriera"].includes(h)) {
-        val = sottostanteData[h] || "";
+        val = "";
       } else {
         val = mainData[h] || "";
       }
@@ -202,13 +200,13 @@ function fillRow(tr, mainData, sottostanteData, isCertificato) {
       }
     }
 
-    if (h === "Valuta" && val) {
+    if (h === "Valuta" && val && isCertificato) {
       if ((mainData["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
         val = `${val}\nQuanto`;
       }
     }
 
-    if (h === "Prossima Osservazione" && val && mainData["Osservazione"]) {
+    if (h === "Prossima Osservazione" && val && isCertificato && mainData["Osservazione"]) {
       val = `${val}\n${mainData["Osservazione"]}`;
     }
 
