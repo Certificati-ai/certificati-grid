@@ -49,9 +49,9 @@
       font-weight: bold;
     }
     tr.certificato-row {
-      background-color: #f9f9f9;
       font-weight: bold;
       border-top: 2px solid #333;
+      background-color: #fff; /* Colore normale */
     }
     tr.sottostante-row {
       background-color: #fff;
@@ -156,19 +156,19 @@ function renderCertificati(data) {
   tbody.innerHTML = '';
 
   data.forEach(cert => {
-    // Riga principale certificato
+    // Riga principale certificato con primo sottostante dentro
     const trMain = document.createElement('tr');
     trMain.className = 'certificato-row';
     trMain.setAttribute('data-block-id', cert.blockId);
-    fillRow(trMain, cert.main, null, true);
+    fillRow(trMain, cert.main, true);
     tbody.appendChild(trMain);
 
-    // Righe sottostanti (tutti i sottostanti)
+    // Righe per gli altri sottostanti
     cert.sottostanti.forEach(row => {
       const tr = document.createElement('tr');
       tr.className = 'sottostante-row';
       tr.setAttribute('data-block-id', cert.blockId);
-      fillRow(tr, {}, row, false);
+      fillRow(tr, row, false);
       tbody.appendChild(tr);
     });
   });
@@ -176,7 +176,7 @@ function renderCertificati(data) {
   addHoverEffect();
 }
 
-function fillRow(tr, mainData, sottostanteData, isCertificato) {
+function fillRow(tr, data, isCertificato) {
   const columns = [
     "Cedola", "Tipologia", "Sottostante", "Fixing", "Performance",
     "Distanza da barriera", "Barriera cedolare", "Barriera capitale",
@@ -186,28 +186,16 @@ function fillRow(tr, mainData, sottostanteData, isCertificato) {
 
   columns.forEach(h => {
     const td = document.createElement('td');
-    let val = "";
-
-    if (isCertificato) {
-      if (["Sottostante", "Fixing", "Performance", "Distanza da barriera"].includes(h)) {
-        val = "";
-      } else {
-        val = mainData[h] || "";
-      }
-    } else {
-      if (["Sottostante", "Fixing", "Performance", "Distanza da barriera", "Barriera cedolare", "Barriera capitale", "Valuta", "Prossima Osservazione"].includes(h)) {
-        val = sottostanteData[h] || "";
-      }
-    }
+    let val = data[h] || "";
 
     if (h === "Valuta" && val && isCertificato) {
-      if ((mainData["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
+      if ((data["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
         val = `${val}\nQuanto`;
       }
     }
 
-    if (h === "Prossima Osservazione" && val && isCertificato && mainData["Osservazione"]) {
-      val = `${val}\n${mainData["Osservazione"]}`;
+    if (h === "Prossima Osservazione" && val && data["Osservazione"]) {
+      val = `${val}\n${data["Osservazione"]}`;
     }
 
     if (h === "Performance" && val) {
@@ -218,7 +206,7 @@ function fillRow(tr, mainData, sottostanteData, isCertificato) {
     }
 
     if (h === "ISIN" && val && isCertificato) {
-      td.innerHTML = `<a class="isin-link" href="${mainData["Link"] || "#"}" target="_blank">${val}</a>`;
+      td.innerHTML = `<a class="isin-link" href="${data["Link"] || "#"}" target="_blank">${val}</a>`;
     } else {
       td.innerText = val;
     }
@@ -273,3 +261,4 @@ document.getElementById('searchInput').addEventListener('keyup', function() {
 
 </body>
 </html>
+
