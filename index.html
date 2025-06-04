@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Tabella Certificati Finanziari - Stile Compatto</title>
+  <title>Tabella Certificati Finanziari - Stile Unico</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
@@ -30,18 +30,13 @@
       max-width: 1200px;
       margin: 0 auto;
     }
-    .certificato {
-      margin-bottom: 30px;
-      border-top: 2px solid #333;
-      padding-top: 10px;
-    }
-    .cert-table, .sottostanti-table {
+    table {
       width: 100%;
       border-collapse: collapse;
       table-layout: fixed;
+      margin-bottom: 30px;
     }
-    .cert-table th, .cert-table td,
-    .sottostanti-table th, .sottostanti-table td {
+    th, td {
       border: 1px solid #ddd;
       padding: 6px 8px;
       text-align: left;
@@ -49,19 +44,16 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .certificato:hover {
-      background-color: #f9f9f9;
-    }
-    .cert-table th {
+    th {
       background-color: #f2f2f2;
       font-weight: bold;
     }
-    .sottostanti-table th {
-      background-color: #f8f9fa;
+    tr.certificato-row {
+      background-color: #f9f9f9;
       font-weight: bold;
     }
-    .hidden {
-      display: none;
+    tr:hover {
+      background-color: #eef2f7;
     }
     .positive {
       color: green;
@@ -79,8 +71,8 @@
     .isin-link:hover {
       text-decoration: underline;
     }
-    .sottostanti-table td:first-child {
-      padding-left: 20px; /* indent sottostanti */
+    .hidden {
+      display: none;
     }
   </style>
 </head>
@@ -90,7 +82,28 @@
 <div id="searchBox">
   <input type="text" id="searchInput" placeholder="Cerca...">
 </div>
-<div class="container" id="certificatiContainer"></div>
+<div class="container">
+  <table id="certificatiTable">
+    <thead>
+      <tr>
+        <th>Cedola</th>
+        <th>Tipologia</th>
+        <th>Sottostante</th>
+        <th>Fixing</th>
+        <th>Performance</th>
+        <th>Barriera capitale</th>
+        <th>Prezzo ask</th>
+        <th>Scadenza</th>
+        <th>Osservazione</th>
+        <th>Barriera cedolare</th>
+        <th>Emittente</th>
+        <th>ISIN</th>
+      </tr>
+    </thead>
+    <tbody id="certificatiBody">
+    </tbody>
+  </table>
+</div>
 
 <script>
 const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQWK_CUJUV8yI0jG51rgpz7DMcVTuLt_HqjyTLPdPDkTyIxWBn8G6yozBtVU3bVymtwOCeZPCKmNAsW/pub?output=csv";
@@ -144,97 +157,70 @@ fetch(csvUrl)
   });
 
 function renderCertificati(data) {
-  const container = document.getElementById('certificatiContainer');
-  container.innerHTML = '';
+  const tbody = document.getElementById('certificatiBody');
+  tbody.innerHTML = '';
 
   data.forEach(cert => {
-    const div = document.createElement('div');
-    div.className = 'certificato';
-
-    // Tabella info certificato
-    const table = document.createElement('table');
-    table.className = 'cert-table';
-
-    const thead = document.createElement('thead');
-    const trHead = document.createElement('tr');
+    // Riga principale certificato
+    const trMain = document.createElement('tr');
+    trMain.className = 'certificato-row';
     [
-      "Cedola", "Tipologia", "Barriera capitale", "Prezzo bid", "Prezzo ask",
-      "Spread bid-ask", "Scadenza", "Prossima Osservazione", "Barriera cedolare", "Emittente", "ISIN"
-    ].forEach(h => {
-      const th = document.createElement('th');
-      th.innerText = h;
-      trHead.appendChild(th);
-    });
-    thead.appendChild(trHead);
-    table.appendChild(thead);
-
-    const tbody = document.createElement('tbody');
-    const tr = document.createElement('tr');
-    [
-      "Cedola", "Tipologia", "Barriera capitale", "Prezzo bid", "Prezzo ask",
-      "Spread bid-ask", "Scadenza", "Prossima Osservazione", "Barriera cedolare", "Emittente", "ISIN"
+      "Cedola", "Tipologia", "", "", "", 
+      "Barriera capitale", "Prezzo ask", "Scadenza", "Prossima Osservazione", 
+      "Barriera cedolare", "Emittente", "ISIN"
     ].forEach(h => {
       const td = document.createElement('td');
       if (h === "ISIN") {
         td.innerHTML = `<a class="isin-link" href="${cert.main["Link"] || "#"}" target="_blank">${cert.main[h] || ""}</a>`;
+      } else if (h === "") {
+        td.innerText = ""; // colonna Sottostante, Fixing, Performance vuota per certificato
       } else {
         td.innerText = cert.main[h] || "";
       }
-      tr.appendChild(td);
+      trMain.appendChild(td);
     });
-    tbody.appendChild(tr);
-    table.appendChild(tbody);
+    tbody.appendChild(trMain);
 
-    div.appendChild(table);
-
-    // Tabella sottostanti
-    const tableSottostanti = document.createElement('table');
-    tableSottostanti.className = 'sottostanti-table';
-
-    const theadSotto = document.createElement('thead');
-    const trHeadSotto = document.createElement('tr');
-    ["Sottostante", "Fixing", "Performance"].forEach(h => {
-      const th = document.createElement('th');
-      th.innerText = h;
-      trHeadSotto.appendChild(th);
-    });
-    theadSotto.appendChild(trHeadSotto);
-    tableSottostanti.appendChild(theadSotto);
-
-    const tbodySotto = document.createElement('tbody');
+    // Righe sottostanti
     cert.sottostanti.forEach(row => {
       const tr = document.createElement('tr');
-      ["Sottostante", "Fixing", "Performance"].forEach(h => {
+      [
+        "", "", "Sottostante", "Fixing", "Performance",
+        "", "", "", "", "", "", ""
+      ].forEach((h, idx) => {
         const td = document.createElement('td');
-        let val = row[h] || "";
-        if (h === "Performance") {
-          const num = parseFloat(val.replace('%', '').replace(',', '.'));
-          if (!isNaN(num)) {
-            td.className = num >= 0 ? 'positive' : 'negative';
+        if (h !== "") {
+          let val = row[h] || "";
+          if (h === "Performance") {
+            const num = parseFloat(val.replace('%', '').replace(',', '.'));
+            if (!isNaN(num)) {
+              td.className = num >= 0 ? 'positive' : 'negative';
+            }
           }
+          td.innerText = val;
         }
-        td.innerText = val;
         tr.appendChild(td);
       });
-      tbodySotto.appendChild(tr);
+      tbody.appendChild(tr);
     });
-    tableSottostanti.appendChild(tbodySotto);
-
-    div.appendChild(tableSottostanti);
-    container.appendChild(div);
   });
 }
 
 // Ricerca su tutto il certificato
 document.getElementById('searchInput').addEventListener('keyup', function() {
   const searchTerm = this.value.toLowerCase();
-
-  document.querySelectorAll('.certificato').forEach(cert => {
-    const text = cert.innerText.toLowerCase();
-    if (text.includes(searchTerm)) {
-      cert.classList.remove('hidden');
+  document.querySelectorAll('#certificatiBody tr.certificato-row').forEach(cert => {
+    let block = [cert];
+    let next = cert.nextElementSibling;
+    while (next && !next.classList.contains('certificato-row')) {
+      block.push(next);
+      next = next.nextElementSibling;
+    }
+    const blockText = block.map(row => row.innerText.toLowerCase()).join(' ');
+    if (blockText.includes(searchTerm)) {
+      block.forEach(row => row.classList.remove('hidden'));
     } else {
-      cert.classList.add('hidden');
+      block.forEach(row => row.classList.add('hidden'));
     }
   });
 });
@@ -242,3 +228,4 @@ document.getElementById('searchInput').addEventListener('keyup', function() {
 
 </body>
 </html>
+
