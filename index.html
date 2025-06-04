@@ -188,14 +188,14 @@ function fillRow(tr, data, isCertificato) {
     const td = document.createElement('td');
     let val = data[h] || "";
 
-    if (!isCertificato) {
-      // Per sottostanti svuotare colonne che non hanno senso
-      if (["Cedola", "Tipologia", "Meccanismo di richiamo / protezione", "Prezzo bid", "Prezzo ask", "Spread bid-ask", "Scadenza", "Costi Entrata", "Emittente", "ISIN"].includes(h)) {
+    if (isCertificato) {
+      // Vuotare certi campi sulla riga certificato
+      if (["Sottostante", "Fixing", "Performance", "Distanza da barriera"].includes(h)) {
         val = "";
       }
     } else {
-      // Per certificato, vuoto campi sottostante, fixing, performance
-      if (["Sottostante", "Fixing", "Performance"].includes(h)) {
+      // Vuotare certi campi sulla riga sottostante
+      if (["Cedola", "Tipologia", "Meccanismo di richiamo / protezione", "Prezzo bid", "Prezzo ask", "Spread bid-ask", "Scadenza", "Costi Entrata", "Emittente", "ISIN"].includes(h)) {
         val = "";
       }
     }
@@ -275,3 +275,4 @@ document.getElementById('searchInput').addEventListener('keyup', function() {
 
 </body>
 </html>
+
