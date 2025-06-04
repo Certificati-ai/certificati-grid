@@ -2,16 +2,16 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Tabella Certificati Finanziari - Full Responsive</title>
+  <title>Tabella Certificati Finanziari</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       font-size: 10px;
-      background: #fff;
-      padding: 20px;
       margin: 0;
+      padding: 20px;
+      background: #fff;
     }
     h1 {
       text-align: center;
@@ -51,8 +51,12 @@
     tr.certificato-row {
       background-color: #f9f9f9;
       font-weight: bold;
+      border-top: 2px solid #333; /* Linea separatrice */
     }
-    tr:hover {
+    tr.sottostante-row {
+      background-color: #ffffff;
+    }
+    tr.hovered {
       background-color: #eef2f7;
     }
     .positive {
@@ -123,13 +127,16 @@ fetch(csvUrl)
     const rawData = parsed.data.filter(row => Object.values(row)[1]?.trim() !== "----------");
 
     let currentCertificato = null;
+    let blockCounter = 0;
 
     rawData.forEach(row => {
       if (row["ISIN"]?.startsWith("CH")) {
         if (currentCertificato) {
           certificati.push(currentCertificato);
         }
+        blockCounter++;
         currentCertificato = {
+          blockId: blockCounter,
           main: row,
           sottostanti: []
         };
@@ -153,6 +160,7 @@ function renderCertificati(data) {
     // Riga principale certificato
     const trMain = document.createElement('tr');
     trMain.className = 'certificato-row';
+    trMain.setAttribute('data-block-id', cert.blockId);
     [
       "Cedola", "Tipologia", "", "", "", 
       "Distanza da barriera", "Barriera cedolare", "Barriera capitale", 
@@ -163,7 +171,7 @@ function renderCertificati(data) {
       if (h === "ISIN") {
         td.innerHTML = `<a class="isin-link" href="${cert.main["Link"] || "#"}" target="_blank">${cert.main[h] || ""}</a>`;
       } else if (h === "") {
-        td.innerText = ""; // per le colonne Sottostante, Fixing, Performance
+        td.innerText = "";
       } else {
         td.innerText = cert.main[h] || "";
       }
@@ -174,10 +182,14 @@ function renderCertificati(data) {
     // Righe sottostanti
     cert.sottostanti.forEach(row => {
       const tr = document.createElement('tr');
+      tr.className = 'sottostante-row';
+      tr.setAttribute('data-block-id', cert.blockId);
       [
         "", "", "Sottostante", "Fixing", "Performance",
-        "", "", "", "", "", "", "", "", "", "", "", "", ""
-      ].forEach((h, idx) => {
+        "Distanza da barriera", "Barriera cedolare", "Barriera capitale", 
+        "", "Valuta", "", "", 
+        "", "", "", "", "", ""
+      ].forEach(h => {
         const td = document.createElement('td');
         if (h !== "") {
           let val = row[h] || "";
@@ -194,12 +206,39 @@ function renderCertificati(data) {
       tbody.appendChild(tr);
     });
   });
+
+  addHoverEffect();
+}
+
+function addHoverEffect() {
+  const rows = document.querySelectorAll('#certificatiBody tr');
+
+  rows.forEach(row => {
+    row.addEventListener('mouseenter', function() {
+      const blockId = this.getAttribute('data-block-id');
+      rows.forEach(r => {
+        if (r.getAttribute('data-block-id') === blockId) {
+          r.classList.add('hovered');
+        }
+      });
+    });
+    row.addEventListener('mouseleave', function() {
+      const blockId = this.getAttribute('data-block-id');
+      rows.forEach(r => {
+        if (r.getAttribute('data-block-id') === blockId) {
+          r.classList.remove('hovered');
+        }
+      });
+    });
+  });
 }
 
 // Ricerca su tutto il certificato
 document.getElementById('searchInput').addEventListener('keyup', function() {
   const searchTerm = this.value.toLowerCase();
-  document.querySelectorAll('#certificatiBody tr.certificato-row').forEach(cert => {
+  const rows = document.querySelectorAll('#certificatiBody tr.certificato-row');
+
+  rows.forEach(cert => {
     let block = [cert];
     let next = cert.nextElementSibling;
     while (next && !next.classList.contains('certificato-row')) {
@@ -218,4 +257,3 @@ document.getElementById('searchInput').addEventListener('keyup', function() {
 
 </body>
 </html>
-
