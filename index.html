@@ -2,64 +2,63 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Tabella Certificati Finanziari - Blocco + Sottostanti</title>
+  <title>Tabella Certificati Finanziari - Stile Compatto</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      font-size: 12px;
+      font-size: 11px;
       background: #fff;
       padding: 20px;
     }
     h1 {
       text-align: center;
-      font-size: 1.5rem;
+      font-size: 1.3rem;
       margin-bottom: 20px;
     }
     #searchBox {
       margin-bottom: 20px;
+      text-align: center;
     }
     #searchBox input {
-      font-size: 12px;
+      font-size: 11px;
       padding: 5px;
       width: 300px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
     }
     .certificato {
       margin-bottom: 30px;
       border-top: 2px solid #333;
       padding-top: 10px;
     }
-    .cert-info {
-      display: grid;
-      grid-template-columns: repeat(9, auto);
-      gap: 15px;
-      align-items: center;
-      background-color: #f8f9fa;
-      padding: 10px;
-      font-weight: bold;
-    }
-    .cert-info div {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .sottostanti-table {
+    .cert-table, .sottostanti-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 10px;
+      table-layout: fixed;
     }
+    .cert-table th, .cert-table td,
     .sottostanti-table th, .sottostanti-table td {
+      border: 1px solid #ddd;
+      padding: 6px 8px;
       text-align: left;
-      padding: 6px;
-      border-bottom: 1px solid #ddd;
-      max-width: 200px;
+      white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
     }
     .certificato:hover {
-      background-color: #f1f3f5;
+      background-color: #f9f9f9;
+    }
+    .cert-table th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+    .sottostanti-table th {
+      background-color: #f8f9fa;
+      font-weight: bold;
     }
     .hidden {
       display: none;
@@ -80,6 +79,9 @@
     .isin-link:hover {
       text-decoration: underline;
     }
+    .sottostanti-table td:first-child {
+      padding-left: 20px; /* indent sottostanti */
+    }
   </style>
 </head>
 <body>
@@ -88,21 +90,18 @@
 <div id="searchBox">
   <input type="text" id="searchInput" placeholder="Cerca...">
 </div>
-<div id="certificatiContainer"></div>
+<div class="container" id="certificatiContainer"></div>
 
 <script>
 const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQWK_CUJUV8yI0jG51rgpz7DMcVTuLt_HqjyTLPdPDkTyIxWBn8G6yozBtVU3bVymtwOCeZPCKmNAsW/pub?output=csv";
 
 let certificati = [];
-let headers = [];
 
 fetch(csvUrl)
   .then(res => res.text())
   .then(csv => {
     const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
     const rawData = parsed.data.filter(row => Object.values(row)[1]?.trim() !== "----------");
-
-    headers = Object.keys(rawData[0]);
 
     let currentCertificato = null;
 
@@ -152,35 +151,16 @@ function renderCertificati(data) {
     const div = document.createElement('div');
     div.className = 'certificato';
 
-    // Info certificato
-    const info = document.createElement('div');
-    info.className = 'cert-info';
-
-    const main = cert.main;
-
-    info.innerHTML = `
-      <div>${main["Cedola"] || ""}</div>
-      <div>${main["Tipologia"] || ""}</div>
-      <div>${main["Barriera capitale"] || ""}</div>
-      <div>${main["Prezzo bid"] || ""}</div>
-      <div>${main["Prezzo ask"] || ""}</div>
-      <div>${main["Spread bid-ask"] || ""}</div>
-      <div>${main["Scadenza"] || ""}</div>
-      <div>${main["Prossima Osservazione"] || ""}</div>
-      <div>${main["Barriera cedolare"] || ""}</div>
-      <div>${main["Emittente"] || ""}</div>
-      <div><a class="isin-link" href="${main["Link"] || "#"}" target="_blank">${main["ISIN"] || ""}</a></div>
-    `;
-
-    div.appendChild(info);
-
-    // Tabella sottostanti
+    // Tabella info certificato
     const table = document.createElement('table');
-    table.className = 'sottostanti-table';
+    table.className = 'cert-table';
 
     const thead = document.createElement('thead');
     const trHead = document.createElement('tr');
-    ["Sottostante", "Fixing", "Performance"].forEach(h => {
+    [
+      "Cedola", "Tipologia", "Barriera capitale", "Prezzo bid", "Prezzo ask",
+      "Spread bid-ask", "Scadenza", "Prossima Osservazione", "Barriera cedolare", "Emittente", "ISIN"
+    ].forEach(h => {
       const th = document.createElement('th');
       th.innerText = h;
       trHead.appendChild(th);
@@ -189,6 +169,39 @@ function renderCertificati(data) {
     table.appendChild(thead);
 
     const tbody = document.createElement('tbody');
+    const tr = document.createElement('tr');
+    [
+      "Cedola", "Tipologia", "Barriera capitale", "Prezzo bid", "Prezzo ask",
+      "Spread bid-ask", "Scadenza", "Prossima Osservazione", "Barriera cedolare", "Emittente", "ISIN"
+    ].forEach(h => {
+      const td = document.createElement('td');
+      if (h === "ISIN") {
+        td.innerHTML = `<a class="isin-link" href="${cert.main["Link"] || "#"}" target="_blank">${cert.main[h] || ""}</a>`;
+      } else {
+        td.innerText = cert.main[h] || "";
+      }
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+    table.appendChild(tbody);
+
+    div.appendChild(table);
+
+    // Tabella sottostanti
+    const tableSottostanti = document.createElement('table');
+    tableSottostanti.className = 'sottostanti-table';
+
+    const theadSotto = document.createElement('thead');
+    const trHeadSotto = document.createElement('tr');
+    ["Sottostante", "Fixing", "Performance"].forEach(h => {
+      const th = document.createElement('th');
+      th.innerText = h;
+      trHeadSotto.appendChild(th);
+    });
+    theadSotto.appendChild(trHeadSotto);
+    tableSottostanti.appendChild(theadSotto);
+
+    const tbodySotto = document.createElement('tbody');
     cert.sottostanti.forEach(row => {
       const tr = document.createElement('tr');
       ["Sottostante", "Fixing", "Performance"].forEach(h => {
@@ -200,14 +213,14 @@ function renderCertificati(data) {
             td.className = num >= 0 ? 'positive' : 'negative';
           }
         }
-        td.innerHTML = `<div title="${val}">${val}</div>`;
+        td.innerText = val;
         tr.appendChild(td);
       });
-      tbody.appendChild(tr);
+      tbodySotto.appendChild(tr);
     });
-    table.appendChild(tbody);
+    tableSottostanti.appendChild(tbodySotto);
 
-    div.appendChild(table);
+    div.appendChild(tableSottostanti);
     container.appendChild(div);
   });
 }
