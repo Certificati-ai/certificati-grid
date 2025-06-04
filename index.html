@@ -2,39 +2,39 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Tabella Certificati Finanziari - Stile Unico</title>
+  <title>Tabella Certificati Finanziari - Full Responsive</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      font-size: 11px;
+      font-size: 10px;
       background: #fff;
       padding: 20px;
+      margin: 0;
     }
     h1 {
       text-align: center;
-      font-size: 1.3rem;
+      font-size: 1.5rem;
       margin-bottom: 20px;
     }
     #searchBox {
-      margin-bottom: 20px;
       text-align: center;
+      margin-bottom: 20px;
     }
-    #searchBox input {
-      font-size: 11px;
+    #searchInput {
+      font-size: 10px;
       padding: 5px;
       width: 300px;
     }
     .container {
-      max-width: 1200px;
-      margin: 0 auto;
+      width: 100%;
+      overflow-x: auto;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      table-layout: fixed;
-      margin-bottom: 30px;
+      table-layout: auto;
     }
     th, td {
       border: 1px solid #ddd;
@@ -91,11 +91,17 @@
         <th>Sottostante</th>
         <th>Fixing</th>
         <th>Performance</th>
-        <th>Barriera capitale</th>
-        <th>Prezzo ask</th>
-        <th>Scadenza</th>
-        <th>Osservazione</th>
+        <th>Distanza da barriera</th>
         <th>Barriera cedolare</th>
+        <th>Barriera capitale</th>
+        <th>Meccanismo di richiamo / protezione</th>
+        <th>Valuta</th>
+        <th>Prezzo bid</th>
+        <th>Prezzo ask</th>
+        <th>Spread bid-ask</th>
+        <th>Scadenza</th>
+        <th>Prossima Osservazione</th>
+        <th>Costi Entrata</th>
         <th>Emittente</th>
         <th>ISIN</th>
       </tr>
@@ -119,23 +125,6 @@ fetch(csvUrl)
     let currentCertificato = null;
 
     rawData.forEach(row => {
-      if ((row["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
-        row["Valuta"] = `${row["Valuta"]} (Quanto)`;
-      }
-
-      if (row["Osservazione"] && row["Prossima Osservazione"]) {
-        row["Prossima Osservazione"] = `${row["Prossima Osservazione"]} (${row["Osservazione"]})`;
-      }
-
-      if (row["Tipologia di barriera"]?.toLowerCase().includes("solo a scadenza")) {
-        row["Barriera capitale"] = `${row["Barriera capitale"]} (Europea)`;
-      }
-
-      const mem = row["Effetto memoria"];
-      if (mem?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() === "si") {
-        row["Barriera cedolare"] = `${row["Barriera cedolare"]} (Si Memory)`;
-      }
-
       if (row["ISIN"]?.startsWith("CH")) {
         if (currentCertificato) {
           certificati.push(currentCertificato);
@@ -166,14 +155,15 @@ function renderCertificati(data) {
     trMain.className = 'certificato-row';
     [
       "Cedola", "Tipologia", "", "", "", 
-      "Barriera capitale", "Prezzo ask", "Scadenza", "Prossima Osservazione", 
-      "Barriera cedolare", "Emittente", "ISIN"
+      "Distanza da barriera", "Barriera cedolare", "Barriera capitale", 
+      "Meccanismo di richiamo / protezione", "Valuta", "Prezzo bid", "Prezzo ask", 
+      "Spread bid-ask", "Scadenza", "Prossima Osservazione", "Costi Entrata", "Emittente", "ISIN"
     ].forEach(h => {
       const td = document.createElement('td');
       if (h === "ISIN") {
         td.innerHTML = `<a class="isin-link" href="${cert.main["Link"] || "#"}" target="_blank">${cert.main[h] || ""}</a>`;
       } else if (h === "") {
-        td.innerText = ""; // colonna Sottostante, Fixing, Performance vuota per certificato
+        td.innerText = ""; // per le colonne Sottostante, Fixing, Performance
       } else {
         td.innerText = cert.main[h] || "";
       }
@@ -186,7 +176,7 @@ function renderCertificati(data) {
       const tr = document.createElement('tr');
       [
         "", "", "Sottostante", "Fixing", "Performance",
-        "", "", "", "", "", "", ""
+        "", "", "", "", "", "", "", "", "", "", "", "", ""
       ].forEach((h, idx) => {
         const td = document.createElement('td');
         if (h !== "") {
