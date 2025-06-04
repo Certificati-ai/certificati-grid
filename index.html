@@ -2,62 +2,52 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Tabella Certificati Finanziari</title>
+  <title>Tabella Certificati Finanziari - Blocchi</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       font-size: 10px;
-      margin: 0;
-      padding: 20px;
       background: #fff;
+      padding: 20px;
     }
     h1 {
       text-align: center;
       font-size: 1.2rem;
-      margin-bottom: 20px;
     }
     #searchBox {
-      text-align: center;
       margin-bottom: 20px;
     }
-    #searchInput {
+    #searchBox input {
       font-size: 10px;
-      padding: 4px 8px;
+      padding: 5px;
       width: 300px;
     }
-    .container {
-      width: 100%;
-      overflow-x: auto;
+    .certificato {
+      margin-bottom: 20px;
+      border-top: 2px solid #333;
+      padding-top: 10px;
     }
-    table {
+    .certificato-table {
       width: 100%;
       border-collapse: collapse;
-      table-layout: auto;
+      margin-top: 10px;
     }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 4px 6px;
+    .certificato-table th, .certificato-table td {
       text-align: left;
-      white-space: nowrap;
+      padding: 4px;
+      border-bottom: 1px solid #ddd;
+      max-width: 150px;
       overflow: hidden;
       text-overflow: ellipsis;
+      white-space: nowrap;
     }
-    th {
-      background-color: #f2f2f2;
-      font-weight: bold;
+    .certificato:hover {
+      background-color: #f1f3f5;
     }
-    tr.certificato-row {
-      background-color: #f9f9f9;
-      font-weight: bold;
-      border-top: 2px solid #333;
-    }
-    tr.sottostante-row {
-      background-color: #fff;
-    }
-    tr.hovered {
-      background-color: #eef2f7;
+    .hidden {
+      display: none;
     }
     .positive {
       color: green;
@@ -75,9 +65,6 @@
     .isin-link:hover {
       text-decoration: underline;
     }
-    .hidden {
-      display: none;
-    }
   </style>
 </head>
 <body>
@@ -86,39 +73,13 @@
 <div id="searchBox">
   <input type="text" id="searchInput" placeholder="Cerca...">
 </div>
-<div class="container">
-  <table id="certificatiTable">
-    <thead>
-      <tr>
-        <th>Cedola</th>
-        <th>Tipologia</th>
-        <th>Sottostante</th>
-        <th>Fixing</th>
-        <th>Performance</th>
-        <th>Distanza da barriera</th>
-        <th>Barriera cedolare</th>
-        <th>Barriera capitale</th>
-        <th>Meccanismo di richiamo / protezione</th>
-        <th>Valuta</th>
-        <th>Prezzo bid</th>
-        <th>Prezzo ask</th>
-        <th>Spread bid-ask</th>
-        <th>Scadenza</th>
-        <th>Prossima Osservazione</th>
-        <th>Costi Entrata</th>
-        <th>Emittente</th>
-        <th>ISIN</th>
-      </tr>
-    </thead>
-    <tbody id="certificatiBody">
-    </tbody>
-  </table>
-</div>
+<div id="certificatiContainer"></div>
 
 <script>
 const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQWK_CUJUV8yI0jG51rgpz7DMcVTuLt_HqjyTLPdPDkTyIxWBn8G6yozBtVU3bVymtwOCeZPCKmNAsW/pub?output=csv";
 
 let certificati = [];
+let headers = [];
 
 fetch(csvUrl)
   .then(res => res.text())
@@ -126,25 +87,43 @@ fetch(csvUrl)
     const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
     const rawData = parsed.data.filter(row => Object.values(row)[1]?.trim() !== "----------");
 
+    headers = Object.keys(rawData[0]).filter(h => 
+      h !== "Effetto memoria" &&
+      h !== "Tipologia di barriera" &&
+      h !== "Quanto (protezione cambio)" &&
+      h !== "Osservazione" &&
+      h !== "Link"
+    );
+
     let currentCertificato = null;
-    let blockCounter = 0;
 
     rawData.forEach(row => {
-      if (row["ISIN"] && row["ISIN"].startsWith("CH")) {
-        // New certificato
+      if ((row["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
+        row["Valuta"] = `${row["Valuta"]}<div>Quanto</div>`;
+      }
+
+      if (row["Osservazione"] && row["Prossima Osservazione"]) {
+        row["Prossima Osservazione"] = `${row["Prossima Osservazione"]}<div>${row["Osservazione"]}</div>`;
+      }
+
+      if (row["Tipologia di barriera"]?.toLowerCase().includes("solo a scadenza")) {
+        row["Barriera capitale"] = `${row["Barriera capitale"]}<div>Europea</div>`;
+      }
+
+      const mem = row["Effetto memoria"];
+      if (mem?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() === "si") {
+        row["Barriera cedolare"] = `${row["Barriera cedolare"]}<div>Si Memory</div>`;
+      }
+
+      if (row["ISIN"]?.startsWith("CH")) {
         if (currentCertificato) {
           certificati.push(currentCertificato);
         }
-        blockCounter++;
         currentCertificato = {
-          blockId: blockCounter,
-          main: row,
-          sottostanti: []
+          rows: []
         };
-      } else if (currentCertificato) {
-        // Sottostante
-        currentCertificato.sottostanti.push(row);
       }
+      currentCertificato.rows.push(row);
     });
     if (currentCertificato) {
       certificati.push(currentCertificato);
@@ -154,122 +133,77 @@ fetch(csvUrl)
   });
 
 function renderCertificati(data) {
-  const tbody = document.getElementById('certificatiBody');
-  tbody.innerHTML = '';
+  const container = document.getElementById('certificatiContainer');
+  container.innerHTML = '';
 
   data.forEach(cert => {
-    // Riga principale certificato
-    const trMain = document.createElement('tr');
-    trMain.className = 'certificato-row';
-    trMain.setAttribute('data-block-id', cert.blockId);
-    fillRow(trMain, cert.main, true);
-    tbody.appendChild(trMain);
+    const div = document.createElement('div');
+    div.className = 'certificato';
 
-    // Righe sottostanti
-    cert.sottostanti.forEach(row => {
+    const table = document.createElement('table');
+    table.className = 'certificato-table';
+
+    const thead = document.createElement('thead');
+    const trHead = document.createElement('tr');
+    headers.forEach(h => {
+      const th = document.createElement('th');
+      th.innerText = h;
+      trHead.appendChild(th);
+    });
+    thead.appendChild(trHead);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    cert.rows.forEach((row, idx) => {
       const tr = document.createElement('tr');
-      tr.className = 'sottostante-row';
-      tr.setAttribute('data-block-id', cert.blockId);
-      fillRow(tr, row, false);
+      headers.forEach(h => {
+        const td = document.createElement('td');
+        let val = row[h] || "";
+
+        if (idx === 0) {
+          // Riga certificato: svuotare solo queste colonne
+          if (["Sottostante", "Fixing", "Performance", "Distanza da barriera"].includes(h)) {
+            val = "";
+          }
+        } else {
+          // Riga sottostante: svuotare solo queste colonne
+          if (["Cedola", "Tipologia", "Meccanismo di richiamo / protezione", "Prezzo bid", "Prezzo ask", "Spread bid-ask", "Scadenza", "Costi Entrata", "Emittente", "ISIN"].includes(h)) {
+            val = "";
+          }
+        }
+
+        if (h.toLowerCase() === "performance" && val) {
+          const num = parseFloat(val.replace('%', '').replace(',', '.'));
+          if (!isNaN(num)) {
+            td.className = num >= 0 ? 'positive' : 'negative';
+          }
+        }
+
+        if (h === "ISIN" && row[h] && idx === 0) {
+          const link = row["Link"]?.trim();
+          td.innerHTML = `<a class="isin-link" href="${link}" target="_blank" title="${row[h]}">${row[h]}</a>`;
+        } else {
+          td.innerHTML = `<div title="${val}">${val}</div>`;
+        }
+        tr.appendChild(td);
+      });
       tbody.appendChild(tr);
     });
-  });
-
-  addHoverEffect();
-}
-
-function fillRow(tr, data, isCertificato) {
-  const columns = [
-    "Cedola", "Tipologia", "Sottostante", "Fixing", "Performance",
-    "Distanza da barriera", "Barriera cedolare", "Barriera capitale",
-    "Meccanismo di richiamo / protezione", "Valuta", "Prezzo bid", "Prezzo ask",
-    "Spread bid-ask", "Scadenza", "Prossima Osservazione", "Costi Entrata", "Emittente", "ISIN"
-  ];
-
-  columns.forEach(h => {
-    const td = document.createElement('td');
-    let val = data[h] || "";
-
-    if (isCertificato) {
-      // Vuotare certi campi sulla riga certificato
-      if (["Sottostante", "Fixing", "Performance", "Distanza da barriera"].includes(h)) {
-        val = "";
-      }
-    } else {
-      // Vuotare certi campi sulla riga sottostante
-      if (["Cedola", "Tipologia", "Meccanismo di richiamo / protezione", "Prezzo bid", "Prezzo ask", "Spread bid-ask", "Scadenza", "Costi Entrata", "Emittente", "ISIN"].includes(h)) {
-        val = "";
-      }
-    }
-
-    if (h === "Valuta" && val) {
-      if ((data["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
-        val = `${val}\nQuanto`;
-      }
-    }
-
-    if (h === "Prossima Osservazione" && val) {
-      if (data["Osservazione"]) {
-        val = `${val}\n${data["Osservazione"]}`;
-      }
-    }
-
-    if (h === "Performance" && val) {
-      const num = parseFloat(val.replace('%', '').replace(',', '.'));
-      if (!isNaN(num)) {
-        td.className = num >= 0 ? 'positive' : 'negative';
-      }
-    }
-
-    if (h === "ISIN" && val && isCertificato) {
-      td.innerHTML = `<a class="isin-link" href="${data["Link"] || "#"}" target="_blank">${val}</a>`;
-    } else {
-      td.innerText = val;
-    }
-    tr.appendChild(td);
+    table.appendChild(tbody);
+    div.appendChild(table);
+    container.appendChild(div);
   });
 }
 
-function addHoverEffect() {
-  const rows = document.querySelectorAll('#certificatiBody tr');
-
-  rows.forEach(row => {
-    row.addEventListener('mouseenter', function() {
-      const blockId = this.getAttribute('data-block-id');
-      rows.forEach(r => {
-        if (r.getAttribute('data-block-id') === blockId) {
-          r.classList.add('hovered');
-        }
-      });
-    });
-    row.addEventListener('mouseleave', function() {
-      const blockId = this.getAttribute('data-block-id');
-      rows.forEach(r => {
-        if (r.getAttribute('data-block-id') === blockId) {
-          r.classList.remove('hovered');
-        }
-      });
-    });
-  });
-}
-
-// Ricerca su tutto il certificato
 document.getElementById('searchInput').addEventListener('keyup', function() {
   const searchTerm = this.value.toLowerCase();
-  const rows = document.querySelectorAll('#certificatiBody tr.certificato-row');
 
-  rows.forEach(cert => {
-    let block = [cert];
-    let next = cert.nextElementSibling;
-    while (next && !next.classList.contains('certificato-row')) {
-      block.push(next);
-      next = next.nextElementSibling;
-    }
-    const blockText = block.map(row => row.innerText.toLowerCase()).join(' ');
-    if (blockText.includes(searchTerm)) {
-      block.forEach(row => row.classList.remove('hidden'));
+  document.querySelectorAll('.certificato').forEach(cert => {
+    const text = cert.innerText.toLowerCase();
+    if (text.includes(searchTerm)) {
+      cert.classList.remove('hidden');
     } else {
-      block.forEach(row => row.classList.add('hidden'));
+      cert.classList.add('hidden');
     }
   });
 });
@@ -277,4 +211,3 @@ document.getElementById('searchInput').addEventListener('keyup', function() {
 
 </body>
 </html>
-
