@@ -35,20 +35,23 @@
       width: 100%;
       border-collapse: collapse;
       table-layout: auto;
+      border: 1px solid #ddd; /* bordo esterno tabella */
     }
     th, td {
-      border: 1px solid #ddd;
-      padding: 4px 6px;
+      border-bottom: 1px solid #eee; /* solo bordo sotto le celle */
+      padding: 6px 8px;
       text-align: left;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     th {
-      background-color: #f2f2f2;
+      background-color: #f9f9f9;
+      font-weight: normal;
+      border-bottom: 2px solid #ddd;
     }
     tr.certificato-row {
-      border-top: 2px solid #333;
+      border-top: 1px solid #ccc; /* sottile bordo sopra ogni certificato */
       background-color: #fff;
       font-weight: normal;
     }
@@ -57,7 +60,7 @@
       font-weight: normal;
     }
     tr.hovered {
-      background-color: #eef2f7;
+      background-color: #f1f1f1; /* hover morbido */
     }
     .positive {
       color: green;
@@ -258,4 +261,5 @@ document.getElementById('searchInput').addEventListener('keyup', function() {
 
 </body>
 </html>
+
 
