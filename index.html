@@ -131,6 +131,7 @@ fetch(csvUrl)
 
     rawData.forEach(row => {
       if (row["ISIN"] && row["ISIN"].startsWith("CH")) {
+        // New certificato
         if (currentCertificato) {
           certificati.push(currentCertificato);
         }
@@ -141,6 +142,7 @@ fetch(csvUrl)
           sottostanti: []
         };
       } else if (currentCertificato) {
+        // Sottostante
         currentCertificato.sottostanti.push(row);
       }
     });
