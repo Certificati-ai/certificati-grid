@@ -15,7 +15,7 @@
     }
     h1 {
       text-align: center;
-      font-size: 1.5rem;
+      font-size: 1.2rem;
       margin-bottom: 20px;
     }
     #searchBox {
@@ -24,7 +24,7 @@
     }
     #searchInput {
       font-size: 10px;
-      padding: 5px;
+      padding: 4px 8px;
       width: 300px;
     }
     .container {
@@ -38,7 +38,7 @@
     }
     th, td {
       border: 1px solid #ddd;
-      padding: 6px 8px;
+      padding: 4px 6px;
       text-align: left;
       white-space: nowrap;
       overflow: hidden;
@@ -51,10 +51,10 @@
     tr.certificato-row {
       background-color: #f9f9f9;
       font-weight: bold;
-      border-top: 2px solid #333; /* Linea separatrice */
+      border-top: 2px solid #333;
     }
     tr.sottostante-row {
-      background-color: #ffffff;
+      background-color: #fff;
     }
     tr.hovered {
       background-color: #eef2f7;
@@ -161,22 +161,7 @@ function renderCertificati(data) {
     const trMain = document.createElement('tr');
     trMain.className = 'certificato-row';
     trMain.setAttribute('data-block-id', cert.blockId);
-    [
-      "Cedola", "Tipologia", "", "", "", 
-      "Distanza da barriera", "Barriera cedolare", "Barriera capitale", 
-      "Meccanismo di richiamo / protezione", "Valuta", "Prezzo bid", "Prezzo ask", 
-      "Spread bid-ask", "Scadenza", "Prossima Osservazione", "Costi Entrata", "Emittente", "ISIN"
-    ].forEach(h => {
-      const td = document.createElement('td');
-      if (h === "ISIN") {
-        td.innerHTML = `<a class="isin-link" href="${cert.main["Link"] || "#"}" target="_blank">${cert.main[h] || ""}</a>`;
-      } else if (h === "") {
-        td.innerText = "";
-      } else {
-        td.innerText = cert.main[h] || "";
-      }
-      trMain.appendChild(td);
-    });
+    fillRow(trMain, cert.main, true);
     tbody.appendChild(trMain);
 
     // Righe sottostanti
@@ -184,30 +169,59 @@ function renderCertificati(data) {
       const tr = document.createElement('tr');
       tr.className = 'sottostante-row';
       tr.setAttribute('data-block-id', cert.blockId);
-      [
-        "", "", "Sottostante", "Fixing", "Performance",
-        "Distanza da barriera", "Barriera cedolare", "Barriera capitale", 
-        "", "Valuta", "", "", 
-        "", "", "", "", "", ""
-      ].forEach(h => {
-        const td = document.createElement('td');
-        if (h !== "") {
-          let val = row[h] || "";
-          if (h === "Performance") {
-            const num = parseFloat(val.replace('%', '').replace(',', '.'));
-            if (!isNaN(num)) {
-              td.className = num >= 0 ? 'positive' : 'negative';
-            }
-          }
-          td.innerText = val;
-        }
-        tr.appendChild(td);
-      });
+      fillRow(tr, row, false);
       tbody.appendChild(tr);
     });
   });
 
   addHoverEffect();
+}
+
+function fillRow(tr, data, isCertificato) {
+  const columns = [
+    "Cedola", "Tipologia", "Sottostante", "Fixing", "Performance",
+    "Distanza da barriera", "Barriera cedolare", "Barriera capitale",
+    "Meccanismo di richiamo / protezione", "Valuta", "Prezzo bid", "Prezzo ask",
+    "Spread bid-ask", "Scadenza", "Prossima Osservazione", "Costi Entrata", "Emittente", "ISIN"
+  ];
+
+  columns.forEach(h => {
+    const td = document.createElement('td');
+    let val = data[h] || "";
+
+    if (!isCertificato) {
+      // Solo per sottostanti: puliamo i campi che non ha senso ripetere
+      if (["Cedola", "Tipologia", "Meccanismo di richiamo / protezione", "Prezzo bid", "Prezzo ask", "Spread bid-ask", "Scadenza", "Costi Entrata", "Emittente", "ISIN"].includes(h)) {
+        val = "";
+      }
+    }
+
+    if (h === "Valuta" && val) {
+      if ((data["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
+        val = `${val} Quanto`;
+      }
+    }
+
+    if (h === "Prossima Osservazione" && val) {
+      if (data["Osservazione"]) {
+        val = `${val}\n${data["Osservazione"]}`;
+      }
+    }
+
+    if (h === "Performance" && val) {
+      const num = parseFloat(val.replace('%', '').replace(',', '.'));
+      if (!isNaN(num)) {
+        td.className = num >= 0 ? 'positive' : 'negative';
+      }
+    }
+
+    if (h === "ISIN" && val && isCertificato) {
+      td.innerHTML = `<a class="isin-link" href="${data["Link"] || "#"}" target="_blank">${val}</a>`;
+    } else {
+      td.innerText = val;
+    }
+    tr.appendChild(td);
+  });
 }
 
 function addHoverEffect() {
