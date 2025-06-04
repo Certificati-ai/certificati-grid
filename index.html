@@ -140,8 +140,7 @@ fetch(csvUrl)
           main: row,
           sottostanti: []
         };
-      }
-      if (currentCertificato) {
+      } else if (currentCertificato) {
         currentCertificato.sottostanti.push(row);
       }
     });
@@ -190,15 +189,20 @@ function fillRow(tr, data, isCertificato) {
     let val = data[h] || "";
 
     if (!isCertificato) {
-      // Solo per sottostanti: puliamo i campi che non ha senso ripetere
+      // Per sottostanti svuotare colonne che non hanno senso
       if (["Cedola", "Tipologia", "Meccanismo di richiamo / protezione", "Prezzo bid", "Prezzo ask", "Spread bid-ask", "Scadenza", "Costi Entrata", "Emittente", "ISIN"].includes(h)) {
+        val = "";
+      }
+    } else {
+      // Per certificato, vuoto campi sottostante, fixing, performance
+      if (["Sottostante", "Fixing", "Performance"].includes(h)) {
         val = "";
       }
     }
 
     if (h === "Valuta" && val) {
       if ((data["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
-        val = `${val} Quanto`;
+        val = `${val}\nQuanto`;
       }
     }
 
