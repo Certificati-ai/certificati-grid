@@ -2,10 +2,8 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Tabella Certificati Finanziari</title>
+  <title>Tabella Certificati Finanziari - Blocchi</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
-  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     body {
@@ -18,46 +16,38 @@
       text-align: center;
       font-size: 1.2rem;
     }
-    .dataTables_wrapper {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
+    #searchBox {
+      margin-bottom: 20px;
     }
-    .dataTables_filter {
-      order: -1;
-      align-self: flex-start;
-      margin-bottom: 10px;
-    }
-    .dataTables_filter label {
-      font-size: 10px;
-      font-weight: bold;
-    }
-    .dataTables_filter label::before {
-      content: "";
-    }
-    .dataTables_filter label > input {
-      margin-left: 0;
-    }
-    .dataTables_filter input {
+    #searchBox input {
       font-size: 10px;
       padding: 5px;
+      width: 300px;
     }
-    table.dataTable {
-      border-collapse: collapse !important;
+    .certificato {
+      margin-bottom: 20px;
+      border-top: 2px solid #333;
+      padding-top: 10px;
     }
-    table.dataTable td, table.dataTable th {
-      white-space: nowrap;
+    .certificato-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    .certificato-table th, .certificato-table td {
+      text-align: left;
+      padding: 4px;
+      border-bottom: 1px solid #ddd;
+      max-width: 150px;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 150px;
-      font-size: 10px;
-      background-color: white !important;
+      white-space: nowrap;
     }
-    table.dataTable tbody tr.hovered {
-      background-color: #f1f3f5 !important;
+    .certificato:hover {
+      background-color: #f1f3f5;
     }
-    .row-top-divider td {
-      border-top: 2px solid #333 !important;
+    .hidden {
+      display: none;
     }
     .positive {
       color: green;
@@ -75,49 +65,21 @@
     .isin-link:hover {
       text-decoration: underline;
     }
-    .cert-counter {
-      font-size: 10px;
-      margin: 10px 0;
-      color: #6c757d;
-    }
-    .cert-counter strong {
-      color: #212529;
-      font-weight: 600;
-    }
-    .dataTables_length, .dataTables_info {
-      display: none;
-    }
   </style>
 </head>
 <body>
 
 <h1>Tabella Certificati Finanziari</h1>
-<div id="certTable_wrapper">
-  <div id="cert-counter" class="cert-counter"></div>
-  <table id="certTable" class="display" style="width:100%">
-    <thead></thead>
-    <tbody></tbody>
-  </table>
+<div id="searchBox">
+  <input type="text" id="searchInput" placeholder="Cerca...">
 </div>
+<div id="certificatiContainer"></div>
 
 <script>
 const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQWK_CUJUV8yI0jG51rgpz7DMcVTuLt_HqjyTLPdPDkTyIxWBn8G6yozBtVU3bVymtwOCeZPCKmNAsW/pub?output=csv";
 
-let table;
-let blockCounter = 0;
-const allData = [];
-
-function updateCounter() {
-  const visibleBlocks = new Set();
-  table.rows({ search: 'applied' }).every(function() {
-    const blockId = $(this.node()).attr('data-block-id');
-    if (blockId) {
-      visibleBlocks.add(blockId);
-    }
-  });
-  const total = new Set(allData.map(d => d.blockId)).size;
-  document.getElementById("cert-counter").innerHTML = `Certificati mostrati <strong>${visibleBlocks.size}</strong> su <strong>${total}</strong>`;
-}
+let certificati = [];
+let headers = [];
 
 fetch(csvUrl)
   .then(res => res.text())
@@ -125,7 +87,7 @@ fetch(csvUrl)
     const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
     const rawData = parsed.data.filter(row => Object.values(row)[1]?.trim() !== "----------");
 
-    const headers = Object.keys(rawData[0]).filter(h => 
+    headers = Object.keys(rawData[0]).filter(h => 
       h !== "Effetto memoria" &&
       h !== "Tipologia di barriera" &&
       h !== "Quanto (protezione cambio)" &&
@@ -133,132 +95,107 @@ fetch(csvUrl)
       h !== "Link"
     );
 
-    const thead = document.querySelector("#certTable thead");
-    const tr = document.createElement("tr");
-    headers.forEach(h => {
-      const th = document.createElement("th");
-      th.innerText = h;
-      tr.appendChild(th);
-    });
-    thead.appendChild(tr);
+    let currentCertificato = null;
 
     rawData.forEach(row => {
       if ((row["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
-        row["Valuta"] = `${row["Valuta"]}<div>Quanto</div>`;
+        row["Valuta"] = `${row["Valuta"]} (Quanto)`;
       }
 
       if (row["Osservazione"] && row["Prossima Osservazione"]) {
-        row["Prossima Osservazione"] = `${row["Prossima Osservazione"]}<div>${row["Osservazione"]}</div>`;
+        row["Prossima Osservazione"] = `${row["Prossima Osservazione"]} (${row["Osservazione"]})`;
       }
 
       if (row["Tipologia di barriera"]?.toLowerCase().includes("solo a scadenza")) {
-        row["Barriera capitale"] = `${row["Barriera capitale"]}<div>Europea</div>`;
+        row["Barriera capitale"] = `${row["Barriera capitale"]} (Europea)`;
       }
 
       const mem = row["Effetto memoria"];
       if (mem?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() === "si") {
-        row["Barriera cedolare"] = `${row["Barriera cedolare"]}<div>Si Memory</div>`;
+        row["Barriera cedolare"] = `${row["Barriera cedolare"]} (Si Memory)`;
       }
 
-      const formattedRow = headers.map(h => {
-        const val = row[h] || "";
-        const safeVal = val.replace(/"/g, '&quot;'); // sicurezza
+      if (row["ISIN"]?.startsWith("CH")) {
+        // Nuovo certificato
+        if (currentCertificato) {
+          certificati.push(currentCertificato);
+        }
+        currentCertificato = {
+          rows: []
+        };
+      }
+      currentCertificato.rows.push(row);
+    });
+    if (currentCertificato) {
+      certificati.push(currentCertificato);
+    }
+
+    renderCertificati(certificati);
+  });
+
+function renderCertificati(data) {
+  const container = document.getElementById('certificatiContainer');
+  container.innerHTML = '';
+
+  data.forEach(cert => {
+    const div = document.createElement('div');
+    div.className = 'certificato';
+
+    const table = document.createElement('table');
+    table.className = 'certificato-table';
+
+    const thead = document.createElement('thead');
+    const trHead = document.createElement('tr');
+    headers.forEach(h => {
+      const th = document.createElement('th');
+      th.innerText = h;
+      trHead.appendChild(th);
+    });
+    thead.appendChild(trHead);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    cert.rows.forEach(row => {
+      const tr = document.createElement('tr');
+      headers.forEach(h => {
+        const td = document.createElement('td');
+        let val = row[h] || "";
         if (h.toLowerCase() === "performance") {
           const num = parseFloat(val.replace('%', '').replace(',', '.'));
           if (!isNaN(num)) {
-            const cls = num >= 0 ? 'positive' : 'negative';
-            return `<span class="${cls}" title="${safeVal}">${val}</span>`;
+            td.className = num >= 0 ? 'positive' : 'negative';
           }
         }
         if (h === "ISIN" && val.startsWith("CH")) {
           const link = row["Link"]?.trim();
-          return `<a class="isin-link" href="${link}" target="_blank" title="${safeVal}">${val}</a>`;
+          td.innerHTML = `<a class="isin-link" href="${link}" target="_blank" title="${val}">${val}</a>`;
+        } else {
+          td.innerHTML = `<div title="${val}">${val}</div>`;
         }
-        return `<div title="${safeVal}">${val}</div>`;
+        tr.appendChild(td);
       });
-
-      if (row["ISIN"]?.startsWith("CH")) {
-        blockCounter++;
-      }
-      allData.push({ data: formattedRow, blockId: blockCounter });
+      tbody.appendChild(tr);
     });
-
-    table = $('#certTable').DataTable({
-      data: allData.map(d => d.data),
-      columns: headers.map(h => ({ title: h })),
-      ordering: false,
-      paging: true,
-      pageLength: 30,
-      searching: true,
-      language: {
-        search: "",
-        searchPlaceholder: "Cerca...",
-        paginate: {
-          previous: 'Precedente',
-          next: 'Successivo'
-        }
-      },
-      createdRow: function(row, data, dataIndex) {
-        const blockId = allData[dataIndex].blockId;
-        $(row).attr('data-block-id', blockId);
-        if (data[headers.indexOf('ISIN')].includes('isin-link')) {
-          $(row).addClass('row-top-divider');
-        }
-      },
-      initComplete: function() {
-        updateCounter();
-      }
-    });
-
-    // Hover su tutto il blocco
-    $('#certTable tbody').on('mouseenter', 'tr', function () {
-      const blockId = $(this).attr('data-block-id');
-      const nodes = table.rows().nodes(); // tutti i nodi, non solo current page
-      $(nodes).each(function() {
-        if ($(this).attr('data-block-id') === blockId) {
-          $(this).addClass('hovered');
-        }
-      });
-    });
-
-    $('#certTable tbody').on('mouseleave', 'tr', function () {
-      const nodes = table.rows().nodes();
-      $(nodes).removeClass('hovered');
-    });
-
-    // Custom search per blocco
-    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
-      const searchTerm = $('.dataTables_filter input').val().toLowerCase();
-      if (!searchTerm) return true;
-
-      const node = table.row(dataIndex).node();
-      const blockId = $(node).attr('data-block-id');
-
-      const nodes = table.rows().nodes();
-      let blockHasMatch = false;
-
-      $(nodes).each(function() {
-        if ($(this).attr('data-block-id') === blockId) {
-          const text = $(this).text().toLowerCase();
-          if (text.includes(searchTerm)) {
-            blockHasMatch = true;
-          }
-        }
-      });
-
-      return blockHasMatch;
-    });
-
-    $('.dataTables_filter input').on('keyup', function() {
-      table.draw();
-      updateCounter();
-    });
-
-    table.on('draw', function() {
-      updateCounter();
-    });
+    table.appendChild(tbody);
+    div.appendChild(table);
+    container.appendChild(div);
   });
+}
+
+document.getElementById('searchInput').addEventListener('keyup', function() {
+  const searchTerm = this.value.toLowerCase();
+
+  document.querySelectorAll('.certificato').forEach(cert => {
+    const text = cert.innerText.toLowerCase();
+    if (text.includes(searchTerm)) {
+      cert.classList.remove('hidden');
+    } else {
+      cert.classList.add('hidden');
+    }
+  });
+});
 </script>
 
 </body>
 </html>
+
