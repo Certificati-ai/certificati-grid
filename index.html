@@ -67,7 +67,7 @@
       border-radius: 4px;
       padding: 10px;
       box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-      z-index: 100;
+      z-index: 1000;
       font-size: 11px;
     }
     .filter-popup select {
@@ -106,12 +106,9 @@
 <div class="container">
   <table id="certificatiTable">
     <thead>
-      <tr id="headerRow">
-        <!-- intestazioni generate da script -->
-      </tr>
+      <tr id="headerRow"></tr>
     </thead>
-    <tbody id="certificatiBody">
-    </tbody>
+    <tbody id="certificatiBody"></tbody>
   </table>
 </div>
 
@@ -131,7 +128,8 @@ let columns = [
 const filterable = ["Tipologia", "Sottostante", "Meccanismo di richiamo / protezione", "Emittente"];
 const sortable = ["Cedola", "Performance", "Distanza da barriera", "Barriera cedolare", "Barriera capitale", "Spread bid-ask", "Costi Entrata"];
 
-let sortState = {}; // State per toggle
+let sortState = {}; // toggle sort direction
+let activeFilterCol = null; // active filter column
 
 fetch(csvUrl)
   .then(res => res.text())
@@ -178,7 +176,7 @@ function generateHeaders() {
     if (sortable.includes(col)) {
       const sortIcon = document.createElement('span');
       sortIcon.className = 'sort-icons';
-      sortIcon.innerHTML = '⇅'; // Static up-down arrows
+      sortIcon.innerHTML = '⇅';
       sortIcon.onclick = () => toggleSort(col, th);
       th.appendChild(sortIcon);
     }
@@ -262,7 +260,7 @@ function addHoverEffect() {
 // ORDINAMENTO
 function toggleSort(col, th) {
   const ascending = !sortState[col];
-  sortState = {}; // Resetto tutti
+  sortState = {}; // reset
   sortState[col] = ascending;
 
   document.querySelectorAll('.sort-icons').forEach(icon => icon.classList.remove('active'));
@@ -285,6 +283,8 @@ function toggleSort(col, th) {
 function openFilter(col, event) {
   const popup = document.getElementById('filterPopup');
   popup.innerHTML = '';
+
+  activeFilterCol = col;
 
   const uniqueVals = new Set();
   certificati.forEach(cert => {
@@ -325,12 +325,12 @@ function applyFilter(col, value) {
   document.getElementById('filterPopup').style.display = 'none';
 }
 
-window.onclick = function(event) {
+window.addEventListener('click', function(event) {
   const popup = document.getElementById('filterPopup');
-  if (!event.target.matches('.filter-icon')) {
+  if (!popup.contains(event.target) && !event.target.classList.contains('filter-icon')) {
     popup.style.display = 'none';
   }
-};
+});
 </script>
 
 </body>
