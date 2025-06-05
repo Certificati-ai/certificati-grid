@@ -44,6 +44,7 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      position: relative;
       cursor: pointer;
     }
     th {
@@ -51,6 +52,18 @@
       font-weight: bold;
       font-size: 13px;
       border-bottom: 2px solid #ccc;
+    }
+    th.sort-asc::after {
+      content: "▲";
+      position: absolute;
+      right: 8px;
+      font-size: 10px;
+    }
+    th.sort-desc::after {
+      content: "▼";
+      position: absolute;
+      right: 8px;
+      font-size: 10px;
     }
     tr.certificato-row {
       border-top: 2px solid #bbb;
@@ -107,7 +120,7 @@
         <th>Scadenza</th>
         <th>Prossima Osservazione</th>
         <th data-sort="numeric">Costi Entrata</th>
-        <th>Emittente</th>
+        <th data-filter="Emittente">Emittente</th>
         <th>ISIN</th>
       </tr>
     </thead>
@@ -126,7 +139,7 @@ let columns = [
   "Meccanismo di richiamo / protezione", "Valuta", "Prezzo bid", "Prezzo ask",
   "Spread bid-ask", "Scadenza", "Prossima Osservazione", "Costi Entrata", "Emittente", "ISIN"
 ];
-let sortDirections = {}; // Per toggle asc/desc
+let sortDirections = {}; // Toggle direzione ordinamento per ogni colonna
 
 fetch(csvUrl)
   .then(res => res.text())
@@ -238,43 +251,41 @@ function addHoverEffect() {
 function prepareFilters(data) {
   const thead = document.querySelector('#certificatiTable thead tr');
 
-  // Unici valori di Tipologia e Meccanismo da riga main
-  const tipologie = [...new Set(data.map(d => d.main["Tipologia"]).filter(Boolean))].sort();
-  const meccanismi = [...new Set(data.map(d => d.main["Meccanismo di richiamo / protezione"]).filter(Boolean))].sort();
+  const filterCols = ["Tipologia", "Sottostante", "Meccanismo di richiamo / protezione", "Emittente"];
 
-  // Unici valori di Sottostante da main + sottostanti
-  let sottostanti = [];
+  const filterValues = {
+    "Tipologia": [...new Set(data.map(d => d.main["Tipologia"]).filter(Boolean))],
+    "Meccanismo di richiamo / protezione": [...new Set(data.map(d => d.main["Meccanismo di richiamo / protezione"]).filter(Boolean))],
+    "Emittente": [...new Set(data.map(d => d.main["Emittente"]).filter(Boolean))],
+    "Sottostante": []
+  };
+
   data.forEach(cert => {
-    if (cert.main["Sottostante"]) sottostanti.push(cert.main["Sottostante"]);
+    if (cert.main["Sottostante"]) filterValues["Sottostante"].push(cert.main["Sottostante"]);
     cert.sottostanti.forEach(sub => {
-      if (sub["Sottostante"]) sottostanti.push(sub["Sottostante"]);
+      if (sub["Sottostante"]) filterValues["Sottostante"].push(sub["Sottostante"]);
     });
   });
-  sottostanti = [...new Set(sottostanti)].sort();
+  filterValues["Sottostante"] = [...new Set(filterValues["Sottostante"])];
 
-  createSelectFilter(thead, "Tipologia", tipologie);
-  createSelectFilter(thead, "Sottostante", sottostanti);
-  createSelectFilter(thead, "Meccanismo di richiamo / protezione", meccanismi);
-}
-
-function createSelectFilter(thead, colName, values) {
-  const idx = columns.indexOf(colName);
-  const select = document.createElement('select');
-  select.className = 'filter';
-  select.innerHTML = `<option value="">Tutti</option>` + values.map(v => `<option value="${v}">${v}</option>`).join('');
-  select.addEventListener('change', function() {
-    filterTable();
+  filterCols.forEach(colName => {
+    const idx = columns.indexOf(colName);
+    const select = document.createElement('select');
+    select.className = 'filter';
+    select.innerHTML = `<option value="">Tutti</option>` + filterValues[colName].sort().map(v => `<option value="${v}">${v}</option>`).join('');
+    select.addEventListener('change', filterTable);
+    thead.children[idx].appendChild(select);
   });
-  thead.children[idx].appendChild(select);
 }
 
 function filterTable() {
   const tbody = document.getElementById('certificatiBody');
   const filters = {};
   document.querySelectorAll('select.filter').forEach((sel, idx) => {
-    const colName = ["Tipologia", "Sottostante", "Meccanismo di richiamo / protezione"][idx];
+    const colName = ["Tipologia", "Sottostante", "Meccanismo di richiamo / protezione", "Emittente"][idx];
     filters[colName] = sel.value;
   });
+
   const rows = Array.from(tbody.querySelectorAll('tr.certificato-row'));
   rows.forEach(cert => {
     const blockId = cert.getAttribute('data-block-id');
@@ -297,11 +308,12 @@ function filterTable() {
 // ORDINAMENTO
 function prepareSorting() {
   document.querySelectorAll('th[data-sort]').forEach((th, idx) => {
-    th.style.cursor = 'pointer';
     th.addEventListener('click', () => {
+      document.querySelectorAll('th').forEach(th => th.classList.remove('sort-asc', 'sort-desc'));
       const key = columns[idx];
       const isNumeric = th.getAttribute('data-sort') === 'numeric';
       sortDirections[key] = !sortDirections[key];
+      th.classList.add(sortDirections[key] ? 'sort-asc' : 'sort-desc');
       sortTable(key, isNumeric, sortDirections[key]);
     });
   });
