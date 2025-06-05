@@ -44,6 +44,7 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      cursor: pointer;
     }
     th {
       background-color: #f9f9f9;
@@ -54,11 +55,9 @@
     tr.certificato-row {
       border-top: 2px solid #bbb; /* Riga divisoria 2px tra certificati */
       background-color: #fff;
-      font-weight: normal;
     }
     tr.sottostante-row {
       background-color: #fff;
-      font-weight: normal;
     }
     tr.hovered {
       background-color: #f5f5f5; /* hover più morbido */
@@ -79,34 +78,35 @@
     .hidden {
       display: none;
     }
+    select.filter {
+      font-size: 11px;
+      margin-left: 5px;
+    }
   </style>
 </head>
 <body>
 
 <h1>Tabella Certificati Finanziari</h1>
-<div id="searchBox">
-  <input type="text" id="searchInput" placeholder="Cerca...">
-</div>
 <div class="container">
   <table id="certificatiTable">
     <thead>
       <tr>
-        <th>Cedola</th>
-        <th>Tipologia</th>
-        <th>Sottostante</th>
+        <th data-sort="numeric">Cedola</th>
+        <th data-filter="Tipologia">Tipologia</th>
+        <th data-filter="Sottostante">Sottostante</th>
         <th>Fixing</th>
-        <th>Performance</th>
-        <th>Distanza da barriera</th>
-        <th>Barriera cedolare</th>
-        <th>Barriera capitale</th>
-        <th>Meccanismo di richiamo / protezione</th>
+        <th data-sort="numeric">Performance</th>
+        <th data-sort="numeric">Distanza da barriera</th>
+        <th data-sort="numeric">Barriera cedolare</th>
+        <th data-sort="numeric">Barriera capitale</th>
+        <th data-filter="Meccanismo di richiamo / protezione">Meccanismo di richiamo / protezione</th>
         <th>Valuta</th>
         <th>Prezzo bid</th>
         <th>Prezzo ask</th>
-        <th>Spread bid-ask</th>
+        <th data-sort="numeric">Spread bid-ask</th>
         <th>Scadenza</th>
         <th>Prossima Osservazione</th>
-        <th>Costi Entrata</th>
+        <th data-sort="numeric">Costi Entrata</th>
         <th>Emittente</th>
         <th>ISIN</th>
       </tr>
@@ -120,6 +120,12 @@
 const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQWK_CUJUV8yI0jG51rgpz7DMcVTuLt_HqjyTLPdPDkTyIxWBn8G6yozBtVU3bVymtwOCeZPCKmNAsW/pub?output=csv";
 
 let certificati = [];
+let columns = [
+  "Cedola", "Tipologia", "Sottostante", "Fixing", "Performance",
+  "Distanza da barriera", "Barriera cedolare", "Barriera capitale",
+  "Meccanismo di richiamo / protezione", "Valuta", "Prezzo bid", "Prezzo ask",
+  "Spread bid-ask", "Scadenza", "Prossima Osservazione", "Costi Entrata", "Emittente", "ISIN"
+];
 
 fetch(csvUrl)
   .then(res => res.text())
@@ -150,6 +156,8 @@ fetch(csvUrl)
     }
 
     renderCertificati(certificati);
+    prepareFilters(certificati);
+    prepareSorting();
   });
 
 function renderCertificati(data) {
@@ -157,14 +165,12 @@ function renderCertificati(data) {
   tbody.innerHTML = '';
 
   data.forEach(cert => {
-    // Riga principale certificato con primo sottostante dentro
     const trMain = document.createElement('tr');
     trMain.className = 'certificato-row';
     trMain.setAttribute('data-block-id', cert.blockId);
     fillRow(trMain, cert.main, true);
     tbody.appendChild(trMain);
 
-    // Righe per gli altri sottostanti
     cert.sottostanti.forEach(row => {
       const tr = document.createElement('tr');
       tr.className = 'sottostante-row';
@@ -178,13 +184,6 @@ function renderCertificati(data) {
 }
 
 function fillRow(tr, data, isCertificato) {
-  const columns = [
-    "Cedola", "Tipologia", "Sottostante", "Fixing", "Performance",
-    "Distanza da barriera", "Barriera cedolare", "Barriera capitale",
-    "Meccanismo di richiamo / protezione", "Valuta", "Prezzo bid", "Prezzo ask",
-    "Spread bid-ask", "Scadenza", "Prossima Osservazione", "Costi Entrata", "Emittente", "ISIN"
-  ];
-
   columns.forEach(h => {
     const td = document.createElement('td');
     let val = data[h] || "";
@@ -194,18 +193,15 @@ function fillRow(tr, data, isCertificato) {
         val = `${val}\nQuanto`;
       }
     }
-
     if (h === "Prossima Osservazione" && val && data["Osservazione"]) {
       val = `${val}\n${data["Osservazione"]}`;
     }
-
     if (h === "Performance" && val) {
       const num = parseFloat(val.replace('%', '').replace(',', '.'));
       if (!isNaN(num)) {
         td.className = num >= 0 ? 'positive' : 'negative';
       }
     }
-
     if (h === "ISIN" && val && isCertificato) {
       td.innerHTML = `<a class="isin-link" href="${data["Link"] || "#"}" target="_blank">${val}</a>`;
     } else {
@@ -217,7 +213,6 @@ function fillRow(tr, data, isCertificato) {
 
 function addHoverEffect() {
   const rows = document.querySelectorAll('#certificatiBody tr');
-
   rows.forEach(row => {
     row.addEventListener('mouseenter', function() {
       const blockId = this.getAttribute('data-block-id');
@@ -238,29 +233,70 @@ function addHoverEffect() {
   });
 }
 
-// Ricerca su tutto il certificato
-document.getElementById('searchInput').addEventListener('keyup', function() {
-  const searchTerm = this.value.toLowerCase();
-  const rows = document.querySelectorAll('#certificatiBody tr.certificato-row');
-
-  rows.forEach(cert => {
-    let block = [cert];
-    let next = cert.nextElementSibling;
-    while (next && !next.classList.contains('certificato-row')) {
-      block.push(next);
-      next = next.nextElementSibling;
-    }
-    const blockText = block.map(row => row.innerText.toLowerCase()).join(' ');
-    if (blockText.includes(searchTerm)) {
-      block.forEach(row => row.classList.remove('hidden'));
-    } else {
-      block.forEach(row => row.classList.add('hidden'));
-    }
+// FILTRI
+function prepareFilters(data) {
+  const thead = document.querySelector('#certificatiTable thead tr');
+  ["Tipologia", "Sottostante", "Meccanismo di richiamo / protezione"].forEach(colName => {
+    const idx = columns.indexOf(colName);
+    const uniqueVals = [...new Set(data.map(d => d.main[colName]).filter(Boolean))].sort();
+    const select = document.createElement('select');
+    select.className = 'filter';
+    select.innerHTML = `<option value="">Tutti</option>` + uniqueVals.map(v => `<option value="${v}">${v}</option>`).join('');
+    select.addEventListener('change', function() {
+      filterTable();
+    });
+    thead.children[idx].appendChild(select);
   });
-});
+}
+
+function filterTable() {
+  const tbody = document.getElementById('certificatiBody');
+  const filters = {};
+  document.querySelectorAll('select.filter').forEach((sel, idx) => {
+    const colName = ["Tipologia", "Sottostante", "Meccanismo di richiamo / protezione"][idx];
+    filters[colName] = sel.value;
+  });
+  const rows = Array.from(tbody.querySelectorAll('tr.certificato-row'));
+  rows.forEach(cert => {
+    const blockId = cert.getAttribute('data-block-id');
+    const blockRows = Array.from(tbody.querySelectorAll(`tr[data-block-id="${blockId}"]`));
+    let show = true;
+    for (const key in filters) {
+      if (filters[key] && cert.querySelector(`td:nth-child(${columns.indexOf(key) + 1})`).innerText !== filters[key]) {
+        show = false;
+        break;
+      }
+    }
+    blockRows.forEach(row => row.style.display = show ? '' : 'none');
+  });
+}
+
+// ORDINAMENTO
+function prepareSorting() {
+  document.querySelectorAll('th[data-sort]').forEach((th, idx) => {
+    th.style.cursor = 'pointer';
+    th.addEventListener('click', () => {
+      const key = columns[idx];
+      const isNumeric = th.getAttribute('data-sort') === 'numeric';
+      sortTable(key, isNumeric);
+    });
+  });
+}
+
+function sortTable(key, numeric = false) {
+  certificati.sort((a, b) => {
+    let v1 = a.main[key];
+    let v2 = b.main[key];
+    if (numeric) {
+      v1 = parseFloat((v1 || '').toString().replace(',', '.'));
+      v2 = parseFloat((v2 || '').toString().replace(',', '.'));
+    }
+    return v1 > v2 ? 1 : v1 < v2 ? -1 : 0;
+  });
+  renderCertificati(certificati);
+}
+
 </script>
 
 </body>
 </html>
-
-
