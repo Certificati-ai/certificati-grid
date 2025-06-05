@@ -317,7 +317,9 @@ function openFilter(col, event) {
   });
 
   const select = document.createElement('select');
+  select.size = Math.min(uniqueVals.size + 1, 10); // per aprirlo subito
   select.innerHTML = `<option value="">Tutti</option>` + Array.from(uniqueVals).sort().map(v => `<option value="${v}">${v}</option>`).join('');
+  
   select.addEventListener('change', function() {
     if (this.value === "") {
       certificati = JSON.parse(JSON.stringify(originalCertificati));
@@ -338,7 +340,7 @@ function openFilter(col, event) {
   popup.style.top = (event.pageY + 5) + 'px';
   popup.style.left = (event.pageX - 75) + 'px';
 
-  setTimeout(() => select.focus(), 50); // auto open!
+  setTimeout(() => select.focus(), 50); // focus immediato
 }
 
 // CERCA
@@ -354,6 +356,7 @@ document.getElementById('searchInput').addEventListener('keyup', function() {
   renderCertificati(filtered);
 });
 
+// Chiudi popup cliccando fuori
 window.addEventListener('click', function(event) {
   const popup = document.getElementById('filterPopup');
   if (!popup.contains(event.target) && !event.target.classList.contains('filter-icon')) {
@@ -364,3 +367,4 @@ window.addEventListener('click', function(event) {
 
 </body>
 </html>
+
