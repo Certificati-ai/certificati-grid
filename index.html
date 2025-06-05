@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Tabella Certificati Finanziari - Filtri, Ordinamento e Ricerca</title>
+  <title>Tabella Certificati Finanziari - Auto-open Filter + Reset</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -132,6 +132,7 @@
 const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQWK_CUJUV8yI0jG51rgpz7DMcVTuLt_HqjyTLPdPDkTyIxWBn8G6yozBtVU3bVymtwOCeZPCKmNAsW/pub?output=csv";
 
 let certificati = [];
+let originalData = [];
 let columns = [
   "Cedola", "Tipologia", "Sottostante", "Fixing", "Performance",
   "Distanza da barriera", "Barriera cedolare", "Barriera capitale",
@@ -172,17 +173,18 @@ fetch(csvUrl)
     if (currentCertificato) {
       certificati.push(currentCertificato);
     }
-
-    renderTable();
+    originalData = certificati.slice();
+    renderTable(certificati);
   });
 
-function renderTable() {
+function renderTable(data) {
   generateHeaders();
-  renderCertificati(certificati);
+  renderCertificati(data);
 }
 
 function generateHeaders() {
   const headerRow = document.getElementById('headerRow');
+  headerRow.innerHTML = '';
   columns.forEach(col => {
     const th = document.createElement('th');
     th.innerHTML = col;
@@ -309,7 +311,7 @@ function openFilter(col, event) {
   activeFilterCol = col;
 
   const uniqueVals = new Set();
-  certificati.forEach(cert => {
+  originalData.forEach(cert => {
     if (cert.main[col]) uniqueVals.add(cert.main[col]);
     cert.sottostanti.forEach(sub => {
       if (sub[col]) uniqueVals.add(sub[col]);
@@ -325,56 +327,35 @@ function openFilter(col, event) {
   popup.style.display = 'block';
   popup.style.top = (event.pageY + 5) + 'px';
   popup.style.left = (event.pageX - 75) + 'px';
+
+  setTimeout(() => select.focus(), 100); // Focus automatico per aprire subito
 }
 
 function applyFilter(col, value) {
-  const tbody = document.getElementById('certificatiBody');
-  const rows = Array.from(tbody.querySelectorAll('tr.certificato-row'));
-
   if (value === "") {
-    rows.forEach(cert => {
-      const blockId = cert.getAttribute('data-block-id');
-      const blockRows = Array.from(tbody.querySelectorAll(`tr[data-block-id="${blockId}"]`));
-      blockRows.forEach(row => row.style.display = '');
-    });
+    certificati = originalData.slice();
   } else {
-    rows.forEach(cert => {
-      const blockId = cert.getAttribute('data-block-id');
-      const blockRows = Array.from(tbody.querySelectorAll(`tr[data-block-id="${blockId}"]`));
-      
-      let show = false;
-      blockRows.forEach(row => {
-        const idx = columns.indexOf(col);
-        if (row.querySelectorAll('td')[idx].innerText === value) {
-          show = true;
-        }
-      });
-      blockRows.forEach(row => row.style.display = show ? '' : 'none');
+    certificati = originalData.filter(cert => {
+      const matchMain = cert.main[col] === value;
+      const matchSottostanti = cert.sottostanti.some(sub => sub[col] === value);
+      return matchMain || matchSottostanti;
     });
   }
-
+  renderCertificati(certificati);
   document.getElementById('filterPopup').style.display = 'none';
 }
 
 // CERCA
 document.getElementById('searchInput').addEventListener('keyup', function() {
   const searchTerm = this.value.toLowerCase();
-  const rows = document.querySelectorAll('#certificatiBody tr.certificato-row');
-
-  rows.forEach(cert => {
-    let block = [cert];
-    let next = cert.nextElementSibling;
-    while (next && !next.classList.contains('certificato-row')) {
-      block.push(next);
-      next = next.nextElementSibling;
-    }
-    const blockText = block.map(row => row.innerText.toLowerCase()).join(' ');
-    if (blockText.includes(searchTerm)) {
-      block.forEach(row => row.style.display = '');
-    } else {
-      block.forEach(row => row.style.display = 'none');
-    }
+  const filtered = certificati.filter(cert => {
+    let blockText = Object.values(cert.main).join(' ').toLowerCase();
+    cert.sottostanti.forEach(sub => {
+      blockText += ' ' + Object.values(sub).join(' ').toLowerCase();
+    });
+    return blockText.includes(searchTerm);
   });
+  renderCertificati(filtered);
 });
 
 window.addEventListener('click', function(event) {
@@ -387,4 +368,3 @@ window.addEventListener('click', function(event) {
 
 </body>
 </html>
-
