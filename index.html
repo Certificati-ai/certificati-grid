@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Tabella Certificati Finanziari - Excel Style con Filtro Numerico</title>
+  <title>Tabella Certificati Finanziari - Filtri e Ordinamento</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -277,7 +277,6 @@ function toggleSort(col, th) {
   renderCertificati(certificati);
 }
 
-// Normalizzazione dei valori
 function normalizeValue(val, col) {
   if (!val) return '';
   if (col === "Scadenza") {
@@ -287,6 +286,65 @@ function normalizeValue(val, col) {
   }
   return parseFloat(val.toString().replace(',', '.')) || val;
 }
+
+// FILTRO
+function openFilter(col, event) {
+  const popup = document.getElementById('filterPopup');
+  popup.innerHTML = '';
+
+  activeFilterCol = col;
+
+  const uniqueVals = new Set();
+  certificati.forEach(cert => {
+    if (cert.main[col]) uniqueVals.add(cert.main[col]);
+    cert.sottostanti.forEach(sub => {
+      if (sub[col]) uniqueVals.add(sub[col]);
+    });
+  });
+
+  const select = document.createElement('select');
+  select.innerHTML = `<option value="">Tutti</option>` + Array.from(uniqueVals).sort().map(v => `<option value="${v}">${v}</option>`).join('');
+  select.onchange = () => applyFilter(col, select.value);
+
+  popup.appendChild(select);
+
+  popup.style.display = 'block';
+  popup.style.top = (event.pageY + 5) + 'px';
+  popup.style.left = (event.pageX - 75) + 'px';
+}
+
+function applyFilter(col, value) {
+  const tbody = document.getElementById('certificatiBody');
+  const rows = Array.from(tbody.querySelectorAll('tr.certificato-row'));
+
+  rows.forEach(cert => {
+    const blockId = cert.getAttribute('data-block-id');
+    const blockRows = Array.from(tbody.querySelectorAll(`tr[data-block-id="${blockId}"]`));
+    
+    let show = false;
+    
+    if (value === "") {
+      show = true;
+    } else {
+      blockRows.forEach(row => {
+        const idx = columns.indexOf(col);
+        if (row.querySelectorAll('td')[idx].innerText === value) {
+          show = true;
+        }
+      });
+    }
+    blockRows.forEach(row => row.style.display = show ? '' : 'none');
+  });
+
+  document.getElementById('filterPopup').style.display = 'none';
+}
+
+window.addEventListener('click', function(event) {
+  const popup = document.getElementById('filterPopup');
+  if (!popup.contains(event.target) && !event.target.classList.contains('filter-icon')) {
+    popup.style.display = 'none';
+  }
+});
 </script>
 
 </body>
