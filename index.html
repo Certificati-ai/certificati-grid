@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Tabella Certificati Finanziari - Excel Style</title>
+  <title>Tabella Certificati Finanziari - Excel Style con Filtro Numerico</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -125,11 +125,13 @@ let columns = [
   "Spread bid-ask", "Scadenza", "Prossima Osservazione", "Costi Entrata", "Emittente", "ISIN"
 ];
 
-const filterable = ["Tipologia", "Sottostante", "Meccanismo di richiamo / protezione", "Emittente", "Scadenza"];
-const sortable = ["Cedola", "Performance", "Distanza da barriera", "Barriera cedolare", "Barriera capitale", "Spread bid-ask", "Costi Entrata"];
+// Definiamo i campi numerici, compresa la Scadenza
+const sortableNumeric = [
+  "Cedola", "Performance", "Distanza da barriera", "Barriera cedolare",
+  "Barriera capitale", "Spread bid-ask", "Costi Entrata", "Scadenza"
+];
 
 let sortState = {};
-let activeFilterCol = null;
 
 fetch(csvUrl)
   .then(res => res.text())
@@ -173,19 +175,12 @@ function generateHeaders() {
     const th = document.createElement('th');
     th.innerHTML = col;
 
-    if (sortable.includes(col)) {
+    if (sortableNumeric.includes(col)) {
       const sortIcon = document.createElement('span');
       sortIcon.className = 'sort-icons';
       sortIcon.innerHTML = '⇅';
       sortIcon.onclick = () => toggleSort(col, th);
       th.appendChild(sortIcon);
-    }
-
-    if (filterable.includes(col)) {
-      const filterIcon = document.createElement('span');
-      filterIcon.className = 'filter-icon fa fa-filter';
-      filterIcon.onclick = (e) => openFilter(col, e);
-      th.appendChild(filterIcon);
     }
 
     headerRow.appendChild(th);
@@ -260,17 +255,15 @@ function addHoverEffect() {
 // ORDINAMENTO
 function toggleSort(col, th) {
   const ascending = !sortState[col];
-  sortState = {};
+  sortState = {}; // Reset
   sortState[col] = ascending;
 
   document.querySelectorAll('.sort-icons').forEach(icon => icon.classList.remove('active'));
   th.querySelector('.sort-icons').classList.add('active');
 
   certificati.sort((a, b) => {
-    let v1 = parseFloat((a.main[col] || '').toString().replace(',', '.'));
-    let v2 = parseFloat((b.main[col] || '').toString().replace(',', '.'));
-    if (isNaN(v1)) v1 = a.main[col];
-    if (isNaN(v2)) v2 = b.main[col];
+    let v1 = normalizeValue(a.main[col], col);
+    let v2 = normalizeValue(b.main[col], col);
 
     if (v1 < v2) return ascending ? -1 : 1;
     if (v1 > v2) return ascending ? 1 : -1;
@@ -279,84 +272,16 @@ function toggleSort(col, th) {
   renderCertificati(certificati);
 }
 
-// FILTRO
-function openFilter(col, event) {
-  const popup = document.getElementById('filterPopup');
-  popup.innerHTML = '';
-
-  activeFilterCol = col;
-
-  const uniqueVals = new Set();
-  certificati.forEach(cert => {
-    if (cert.main[col]) {
-      if (col === "Scadenza") {
-        const match = cert.main[col].match(/[\d.,]+/);
-        if (match) uniqueVals.add(match[0]);
-      } else {
-        uniqueVals.add(cert.main[col]);
-      }
-    }
-    cert.sottostanti.forEach(sub => {
-      if (sub[col]) {
-        if (col === "Scadenza") {
-          const match = sub[col].match(/[\d.,]+/);
-          if (match) uniqueVals.add(match[0]);
-        } else {
-          uniqueVals.add(sub[col]);
-        }
-      }
-    });
-  });
-
-  const select = document.createElement('select');
-  select.innerHTML = `<option value="">Tutti</option>` + Array.from(uniqueVals).sort().map(v => `<option value="${v}">${v}</option>`).join('');
-  select.onchange = () => applyFilter(col, select.value);
-
-  popup.appendChild(select);
-
-  popup.style.display = 'block';
-  popup.style.top = (event.pageY + 5) + 'px';
-  popup.style.left = (event.pageX - 75) + 'px';
-}
-
-function applyFilter(col, value) {
-  const tbody = document.getElementById('certificatiBody');
-  const rows = Array.from(tbody.querySelectorAll('tr.certificato-row'));
-
-  rows.forEach(cert => {
-    const blockId = cert.getAttribute('data-block-id');
-    const blockRows = Array.from(tbody.querySelectorAll(`tr[data-block-id="${blockId}"]`));
-    
-    let show = false;
-    
-    if (value === "") {
-      show = true;
-    } else {
-      blockRows.forEach(row => {
-        const idx = columns.indexOf(col);
-        let cellValue = row.querySelectorAll('td')[idx].innerText;
-
-        if (col === "Scadenza") {
-          const match = cellValue.match(/[\d.,]+/);
-          cellValue = match ? match[0] : "";
-        }
-        if (cellValue === value) {
-          show = true;
-        }
-      });
-    }
-    blockRows.forEach(row => row.style.display = show ? '' : 'none');
-  });
-
-  document.getElementById('filterPopup').style.display = 'none';
-}
-
-window.addEventListener('click', function(event) {
-  const popup = document.getElementById('filterPopup');
-  if (!popup.contains(event.target) && !event.target.classList.contains('filter-icon')) {
-    popup.style.display = 'none';
+// Normalizzazione dei valori
+function normalizeValue(val, col) {
+  if (!val) return '';
+  if (col === "Scadenza") {
+    const match = val.match(/[\d.,]+/);
+    if (match) return parseFloat(match[0].replace(',', '.'));
+    return 0;
   }
-});
+  return parseFloat(val.toString().replace(',', '.')) || val;
+}
 </script>
 
 </body>
