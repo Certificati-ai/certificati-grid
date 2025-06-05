@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Tabella Certificati Finanziari - Filtri e Ordinamento</title>
+  <title>Tabella Certificati Finanziari - Filtri e Ordinamento FIX</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -317,24 +317,28 @@ function applyFilter(col, value) {
   const tbody = document.getElementById('certificatiBody');
   const rows = Array.from(tbody.querySelectorAll('tr.certificato-row'));
 
-  rows.forEach(cert => {
-    const blockId = cert.getAttribute('data-block-id');
-    const blockRows = Array.from(tbody.querySelectorAll(`tr[data-block-id="${blockId}"]`));
-    
-    let show = false;
-    
-    if (value === "") {
-      show = true;
-    } else {
+  if (value === "") {
+    // Mostra tutto se selezioni "Tutti"
+    rows.forEach(cert => {
+      const blockId = cert.getAttribute('data-block-id');
+      const blockRows = Array.from(tbody.querySelectorAll(`tr[data-block-id="${blockId}"]`));
+      blockRows.forEach(row => row.style.display = '');
+    });
+  } else {
+    rows.forEach(cert => {
+      const blockId = cert.getAttribute('data-block-id');
+      const blockRows = Array.from(tbody.querySelectorAll(`tr[data-block-id="${blockId}"]`));
+      
+      let show = false;
       blockRows.forEach(row => {
         const idx = columns.indexOf(col);
         if (row.querySelectorAll('td')[idx].innerText === value) {
           show = true;
         }
       });
-    }
-    blockRows.forEach(row => row.style.display = show ? '' : 'none');
-  });
+      blockRows.forEach(row => row.style.display = show ? '' : 'none');
+    });
+  }
 
   document.getElementById('filterPopup').style.display = 'none';
 }
