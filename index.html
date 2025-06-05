@@ -125,13 +125,11 @@ let columns = [
   "Spread bid-ask", "Scadenza", "Prossima Osservazione", "Costi Entrata", "Emittente", "ISIN"
 ];
 
-// Definiamo i campi numerici, compresa la Scadenza
-const sortableNumeric = [
-  "Cedola", "Performance", "Distanza da barriera", "Barriera cedolare",
-  "Barriera capitale", "Spread bid-ask", "Costi Entrata", "Scadenza"
-];
+const filterable = ["Tipologia", "Sottostante", "Meccanismo di richiamo / protezione", "Emittente"];
+const sortable = ["Cedola", "Performance", "Distanza da barriera", "Barriera cedolare", "Barriera capitale", "Spread bid-ask", "Costi Entrata", "Scadenza"];
 
 let sortState = {};
+let activeFilterCol = null;
 
 fetch(csvUrl)
   .then(res => res.text())
@@ -175,12 +173,19 @@ function generateHeaders() {
     const th = document.createElement('th');
     th.innerHTML = col;
 
-    if (sortableNumeric.includes(col)) {
+    if (sortable.includes(col)) {
       const sortIcon = document.createElement('span');
       sortIcon.className = 'sort-icons';
       sortIcon.innerHTML = '⇅';
       sortIcon.onclick = () => toggleSort(col, th);
       th.appendChild(sortIcon);
+    }
+
+    if (filterable.includes(col)) {
+      const filterIcon = document.createElement('span');
+      filterIcon.className = 'filter-icon fa fa-filter';
+      filterIcon.onclick = (e) => openFilter(col, e);
+      th.appendChild(filterIcon);
     }
 
     headerRow.appendChild(th);
@@ -255,7 +260,7 @@ function addHoverEffect() {
 // ORDINAMENTO
 function toggleSort(col, th) {
   const ascending = !sortState[col];
-  sortState = {}; // Reset
+  sortState = {};
   sortState[col] = ascending;
 
   document.querySelectorAll('.sort-icons').forEach(icon => icon.classList.remove('active'));
@@ -286,4 +291,3 @@ function normalizeValue(val, col) {
 
 </body>
 </html>
-
