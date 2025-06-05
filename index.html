@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Tabella Certificati Finanziari - Filtri e Ordinamento FIX</title>
+  <title>Tabella Certificati Finanziari - Filtri, Ordinamento e Ricerca</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -17,7 +17,16 @@
     h1 {
       text-align: center;
       font-size: 1.4rem;
+      margin-bottom: 10px;
+    }
+    #searchBox {
+      text-align: center;
       margin-bottom: 20px;
+    }
+    #searchInput {
+      font-size: 11px;
+      padding: 6px 10px;
+      width: 300px;
     }
     .container {
       width: 100%;
@@ -103,6 +112,11 @@
 <body>
 
 <h1>Tabella Certificati Finanziari</h1>
+
+<div id="searchBox">
+  <input type="text" id="searchInput" placeholder="Cerca...">
+</div>
+
 <div class="container">
   <table id="certificatiTable">
     <thead>
@@ -318,7 +332,6 @@ function applyFilter(col, value) {
   const rows = Array.from(tbody.querySelectorAll('tr.certificato-row'));
 
   if (value === "") {
-    // Mostra tutto se selezioni "Tutti"
     rows.forEach(cert => {
       const blockId = cert.getAttribute('data-block-id');
       const blockRows = Array.from(tbody.querySelectorAll(`tr[data-block-id="${blockId}"]`));
@@ -343,6 +356,27 @@ function applyFilter(col, value) {
   document.getElementById('filterPopup').style.display = 'none';
 }
 
+// CERCA
+document.getElementById('searchInput').addEventListener('keyup', function() {
+  const searchTerm = this.value.toLowerCase();
+  const rows = document.querySelectorAll('#certificatiBody tr.certificato-row');
+
+  rows.forEach(cert => {
+    let block = [cert];
+    let next = cert.nextElementSibling;
+    while (next && !next.classList.contains('certificato-row')) {
+      block.push(next);
+      next = next.nextElementSibling;
+    }
+    const blockText = block.map(row => row.innerText.toLowerCase()).join(' ');
+    if (blockText.includes(searchTerm)) {
+      block.forEach(row => row.style.display = '');
+    } else {
+      block.forEach(row => row.style.display = 'none');
+    }
+  });
+});
+
 window.addEventListener('click', function(event) {
   const popup = document.getElementById('filterPopup');
   if (!popup.contains(event.target) && !event.target.classList.contains('filter-icon')) {
@@ -353,3 +387,4 @@ window.addEventListener('click', function(event) {
 
 </body>
 </html>
+
