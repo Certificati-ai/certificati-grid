@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Tabella Certificati Finanziari - Auto-open Filter + Reset + Hover</title>
+  <title>Tabella Certificati Finanziari - Quanto + Osservazione + Auto-open Filter</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -45,7 +45,7 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      position: relative;
+      vertical-align: top;
     }
     th {
       background-color: #f9f9f9;
@@ -87,7 +87,6 @@
       border-radius: 4px;
       background: #fff;
     }
-    /* Hover effect for select options */
     .filter-popup select option:hover {
       background-color: #e6f7ff;
       cursor: pointer;
@@ -114,6 +113,9 @@
     }
     .isin-link:hover {
       text-decoration: underline;
+    }
+    .hidden {
+      display: none;
     }
   </style>
 </head>
@@ -224,14 +226,14 @@ function renderCertificati(data) {
     const trMain = document.createElement('tr');
     trMain.className = 'certificato-row';
     trMain.setAttribute('data-block-id', cert.blockId);
-    fillRow(trMain, cert.main);
+    fillRow(trMain, cert.main, true);
     tbody.appendChild(trMain);
 
     cert.sottostanti.forEach(row => {
       const tr = document.createElement('tr');
       tr.className = 'sottostante-row';
       tr.setAttribute('data-block-id', cert.blockId);
-      fillRow(tr, row);
+      fillRow(tr, row, false);
       tbody.appendChild(tr);
     });
   });
@@ -239,10 +241,20 @@ function renderCertificati(data) {
   addHoverEffect();
 }
 
-function fillRow(tr, data) {
+function fillRow(tr, data, isCertificato) {
   columns.forEach(h => {
     const td = document.createElement('td');
     let val = data[h] || "";
+
+    if (h === "Valuta" && val && isCertificato) {
+      if ((data["Quanto (protezione cambio)"] || "").trim().toLowerCase() === "sì") {
+        val = `${val}\nQuanto`;
+      }
+    }
+
+    if (h === "Prossima Osservazione" && val && data["Osservazione"]) {
+      val = `${val}\n${data["Osservazione"]}`;
+    }
 
     if (h === "Performance" && val) {
       const num = parseFloat(val.replace('%', '').replace(',', '.'));
@@ -250,7 +262,8 @@ function fillRow(tr, data) {
         td.className = num >= 0 ? 'positive' : 'negative';
       }
     }
-    if (h === "ISIN" && val) {
+
+    if (h === "ISIN" && val && isCertificato) {
       td.innerHTML = `<a class="isin-link" href="${data["Link"] || "#"}" target="_blank">${val}</a>`;
     } else {
       td.innerText = val;
@@ -325,7 +338,7 @@ function openFilter(col, event) {
   });
 
   const select = document.createElement('select');
-  select.size = Math.min(uniqueVals.size + 1, 10); // per aprirlo subito
+  select.size = Math.min(uniqueVals.size + 1, 10);
   select.innerHTML = `<option value="">Tutti</option>` + Array.from(uniqueVals).sort().map(v => `<option value="${v}">${v}</option>`).join('');
   
   select.addEventListener('change', function() {
@@ -348,7 +361,7 @@ function openFilter(col, event) {
   popup.style.top = (event.pageY + 5) + 'px';
   popup.style.left = (event.pageX - 75) + 'px';
 
-  setTimeout(() => select.focus(), 50); // focus immediato
+  setTimeout(() => select.focus(), 50);
 }
 
 // CERCA
