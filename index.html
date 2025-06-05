@@ -8,7 +8,7 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      font-size: 11px; /* base font size */
+      font-size: 11px;
       margin: 0;
       padding: 20px;
       background: #fff;
@@ -48,19 +48,19 @@
     }
     th {
       background-color: #f9f9f9;
-      font-weight: bold;         /* Grassetto sui titoli */
-      font-size: 13px;           /* Font size maggiore */
+      font-weight: bold;
+      font-size: 13px;
       border-bottom: 2px solid #ccc;
     }
     tr.certificato-row {
-      border-top: 2px solid #bbb; /* Riga divisoria 2px tra certificati */
+      border-top: 2px solid #bbb;
       background-color: #fff;
     }
     tr.sottostante-row {
       background-color: #fff;
     }
     tr.hovered {
-      background-color: #f5f5f5; /* hover più morbido */
+      background-color: #f5f5f5;
     }
     .positive {
       color: green;
@@ -126,6 +126,7 @@ let columns = [
   "Meccanismo di richiamo / protezione", "Valuta", "Prezzo bid", "Prezzo ask",
   "Spread bid-ask", "Scadenza", "Prossima Osservazione", "Costi Entrata", "Emittente", "ISIN"
 ];
+let sortDirections = {}; // Per toggle asc/desc
 
 fetch(csvUrl)
   .then(res => res.text())
@@ -236,17 +237,35 @@ function addHoverEffect() {
 // FILTRI
 function prepareFilters(data) {
   const thead = document.querySelector('#certificatiTable thead tr');
-  ["Tipologia", "Sottostante", "Meccanismo di richiamo / protezione"].forEach(colName => {
-    const idx = columns.indexOf(colName);
-    const uniqueVals = [...new Set(data.map(d => d.main[colName]).filter(Boolean))].sort();
-    const select = document.createElement('select');
-    select.className = 'filter';
-    select.innerHTML = `<option value="">Tutti</option>` + uniqueVals.map(v => `<option value="${v}">${v}</option>`).join('');
-    select.addEventListener('change', function() {
-      filterTable();
+
+  // Unici valori di Tipologia e Meccanismo da riga main
+  const tipologie = [...new Set(data.map(d => d.main["Tipologia"]).filter(Boolean))].sort();
+  const meccanismi = [...new Set(data.map(d => d.main["Meccanismo di richiamo / protezione"]).filter(Boolean))].sort();
+
+  // Unici valori di Sottostante da main + sottostanti
+  let sottostanti = [];
+  data.forEach(cert => {
+    if (cert.main["Sottostante"]) sottostanti.push(cert.main["Sottostante"]);
+    cert.sottostanti.forEach(sub => {
+      if (sub["Sottostante"]) sottostanti.push(sub["Sottostante"]);
     });
-    thead.children[idx].appendChild(select);
   });
+  sottostanti = [...new Set(sottostanti)].sort();
+
+  createSelectFilter(thead, "Tipologia", tipologie);
+  createSelectFilter(thead, "Sottostante", sottostanti);
+  createSelectFilter(thead, "Meccanismo di richiamo / protezione", meccanismi);
+}
+
+function createSelectFilter(thead, colName, values) {
+  const idx = columns.indexOf(colName);
+  const select = document.createElement('select');
+  select.className = 'filter';
+  select.innerHTML = `<option value="">Tutti</option>` + values.map(v => `<option value="${v}">${v}</option>`).join('');
+  select.addEventListener('change', function() {
+    filterTable();
+  });
+  thead.children[idx].appendChild(select);
 }
 
 function filterTable() {
@@ -262,9 +281,13 @@ function filterTable() {
     const blockRows = Array.from(tbody.querySelectorAll(`tr[data-block-id="${blockId}"]`));
     let show = true;
     for (const key in filters) {
-      if (filters[key] && cert.querySelector(`td:nth-child(${columns.indexOf(key) + 1})`).innerText !== filters[key]) {
-        show = false;
-        break;
+      if (filters[key]) {
+        const colIdx = columns.indexOf(key) + 1;
+        let blockText = blockRows.map(row => row.querySelector(`td:nth-child(${colIdx})`).innerText);
+        if (!blockText.some(text => text === filters[key])) {
+          show = false;
+          break;
+        }
       }
     }
     blockRows.forEach(row => row.style.display = show ? '' : 'none');
@@ -278,12 +301,13 @@ function prepareSorting() {
     th.addEventListener('click', () => {
       const key = columns[idx];
       const isNumeric = th.getAttribute('data-sort') === 'numeric';
-      sortTable(key, isNumeric);
+      sortDirections[key] = !sortDirections[key];
+      sortTable(key, isNumeric, sortDirections[key]);
     });
   });
 }
 
-function sortTable(key, numeric = false) {
+function sortTable(key, numeric = false, ascending = true) {
   certificati.sort((a, b) => {
     let v1 = a.main[key];
     let v2 = b.main[key];
@@ -291,11 +315,12 @@ function sortTable(key, numeric = false) {
       v1 = parseFloat((v1 || '').toString().replace(',', '.'));
       v2 = parseFloat((v2 || '').toString().replace(',', '.'));
     }
-    return v1 > v2 ? 1 : v1 < v2 ? -1 : 0;
+    if (v1 < v2) return ascending ? -1 : 1;
+    if (v1 > v2) return ascending ? 1 : -1;
+    return 0;
   });
   renderCertificati(certificati);
 }
-
 </script>
 
 </body>
