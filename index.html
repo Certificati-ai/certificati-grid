@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Tabella Certificati Finanziari - Auto-open Filter + Reset</title>
+  <title>Tabella Certificati Finanziari - Auto-open Filter + Reset + Hover</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -83,6 +83,14 @@
       width: 150px;
       padding: 5px;
       margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fff;
+    }
+    /* Hover effect for select options */
+    .filter-popup select option:hover {
+      background-color: #e6f7ff;
+      cursor: pointer;
     }
     tr.certificato-row {
       border-top: 2px solid #bbb;
@@ -367,4 +375,3 @@ window.addEventListener('click', function(event) {
 
 </body>
 </html>
-
