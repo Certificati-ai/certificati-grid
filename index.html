@@ -125,11 +125,11 @@ let columns = [
   "Spread bid-ask", "Scadenza", "Prossima Osservazione", "Costi Entrata", "Emittente", "ISIN"
 ];
 
-const filterable = ["Tipologia", "Sottostante", "Meccanismo di richiamo / protezione", "Emittente"];
+const filterable = ["Tipologia", "Sottostante", "Meccanismo di richiamo / protezione", "Emittente", "Scadenza"];
 const sortable = ["Cedola", "Performance", "Distanza da barriera", "Barriera cedolare", "Barriera capitale", "Spread bid-ask", "Costi Entrata"];
 
-let sortState = {}; // toggle sort direction
-let activeFilterCol = null; // active filter column
+let sortState = {};
+let activeFilterCol = null;
 
 fetch(csvUrl)
   .then(res => res.text())
@@ -260,7 +260,7 @@ function addHoverEffect() {
 // ORDINAMENTO
 function toggleSort(col, th) {
   const ascending = !sortState[col];
-  sortState = {}; // reset
+  sortState = {};
   sortState[col] = ascending;
 
   document.querySelectorAll('.sort-icons').forEach(icon => icon.classList.remove('active'));
@@ -288,9 +288,23 @@ function openFilter(col, event) {
 
   const uniqueVals = new Set();
   certificati.forEach(cert => {
-    if (cert.main[col]) uniqueVals.add(cert.main[col]);
+    if (cert.main[col]) {
+      if (col === "Scadenza") {
+        const match = cert.main[col].match(/[\d.,]+/);
+        if (match) uniqueVals.add(match[0]);
+      } else {
+        uniqueVals.add(cert.main[col]);
+      }
+    }
     cert.sottostanti.forEach(sub => {
-      if (sub[col]) uniqueVals.add(sub[col]);
+      if (sub[col]) {
+        if (col === "Scadenza") {
+          const match = sub[col].match(/[\d.,]+/);
+          if (match) uniqueVals.add(match[0]);
+        } else {
+          uniqueVals.add(sub[col]);
+        }
+      }
     });
   });
 
@@ -312,13 +326,25 @@ function applyFilter(col, value) {
   rows.forEach(cert => {
     const blockId = cert.getAttribute('data-block-id');
     const blockRows = Array.from(tbody.querySelectorAll(`tr[data-block-id="${blockId}"]`));
+    
     let show = false;
-    blockRows.forEach(row => {
-      const idx = columns.indexOf(col);
-      if (!value || row.querySelectorAll('td')[idx].innerText === value) {
-        show = true;
-      }
-    });
+    
+    if (value === "") {
+      show = true;
+    } else {
+      blockRows.forEach(row => {
+        const idx = columns.indexOf(col);
+        let cellValue = row.querySelectorAll('td')[idx].innerText;
+
+        if (col === "Scadenza") {
+          const match = cellValue.match(/[\d.,]+/);
+          cellValue = match ? match[0] : "";
+        }
+        if (cellValue === value) {
+          show = true;
+        }
+      });
+    }
     blockRows.forEach(row => row.style.display = show ? '' : 'none');
   });
 
@@ -335,3 +361,4 @@ window.addEventListener('click', function(event) {
 
 </body>
 </html>
+
