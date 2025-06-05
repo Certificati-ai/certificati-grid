@@ -132,7 +132,7 @@
 const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQWK_CUJUV8yI0jG51rgpz7DMcVTuLt_HqjyTLPdPDkTyIxWBn8G6yozBtVU3bVymtwOCeZPCKmNAsW/pub?output=csv";
 
 let certificati = [];
-let originalData = [];
+let originalCertificati = [];
 let columns = [
   "Cedola", "Tipologia", "Sottostante", "Fixing", "Performance",
   "Distanza da barriera", "Barriera cedolare", "Barriera capitale",
@@ -144,7 +144,6 @@ const filterable = ["Tipologia", "Sottostante", "Meccanismo di richiamo / protez
 const sortable = ["Cedola", "Performance", "Distanza da barriera", "Barriera cedolare", "Barriera capitale", "Spread bid-ask", "Costi Entrata", "Scadenza"];
 
 let sortState = {};
-let activeFilterCol = null;
 
 fetch(csvUrl)
   .then(res => res.text())
@@ -173,7 +172,8 @@ fetch(csvUrl)
     if (currentCertificato) {
       certificati.push(currentCertificato);
     }
-    originalData = certificati.slice();
+
+    originalCertificati = JSON.parse(JSON.stringify(certificati));
     renderTable(certificati);
   });
 
@@ -308,10 +308,8 @@ function openFilter(col, event) {
   const popup = document.getElementById('filterPopup');
   popup.innerHTML = '';
 
-  activeFilterCol = col;
-
   const uniqueVals = new Set();
-  originalData.forEach(cert => {
+  originalCertificati.forEach(cert => {
     if (cert.main[col]) uniqueVals.add(cert.main[col]);
     cert.sottostanti.forEach(sub => {
       if (sub[col]) uniqueVals.add(sub[col]);
@@ -320,7 +318,19 @@ function openFilter(col, event) {
 
   const select = document.createElement('select');
   select.innerHTML = `<option value="">Tutti</option>` + Array.from(uniqueVals).sort().map(v => `<option value="${v}">${v}</option>`).join('');
-  select.onchange = () => applyFilter(col, select.value);
+  select.addEventListener('change', function() {
+    if (this.value === "") {
+      certificati = JSON.parse(JSON.stringify(originalCertificati));
+    } else {
+      certificati = originalCertificati.filter(cert => {
+        const matchMain = cert.main[col] === this.value;
+        const matchSottostanti = cert.sottostanti.some(sub => sub[col] === this.value);
+        return matchMain || matchSottostanti;
+      });
+    }
+    renderCertificati(certificati);
+    popup.style.display = 'none';
+  });
 
   popup.appendChild(select);
 
@@ -328,21 +338,7 @@ function openFilter(col, event) {
   popup.style.top = (event.pageY + 5) + 'px';
   popup.style.left = (event.pageX - 75) + 'px';
 
-  setTimeout(() => select.focus(), 100); // Focus automatico per aprire subito
-}
-
-function applyFilter(col, value) {
-  if (value === "") {
-    certificati = originalData.slice();
-  } else {
-    certificati = originalData.filter(cert => {
-      const matchMain = cert.main[col] === value;
-      const matchSottostanti = cert.sottostanti.some(sub => sub[col] === value);
-      return matchMain || matchSottostanti;
-    });
-  }
-  renderCertificati(certificati);
-  document.getElementById('filterPopup').style.display = 'none';
+  setTimeout(() => select.focus(), 50); // auto open!
 }
 
 // CERCA
